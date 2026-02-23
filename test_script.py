@@ -30,7 +30,7 @@ def parse_args():
   parser.add_argument(
       "--max-messages",
       type=int,
-      default=500,
+      default=100,
       metavar="N",
       help="Maximum number of messages to fetch. Default: 1000",
   )
