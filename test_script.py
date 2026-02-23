@@ -18,6 +18,49 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
 ]
 
+def parse_args():
+  parser = argparse.ArgumentParser(
+      description="Fetch messages from Gmail by label and show body previews.",
+  )
+  parser.add_argument(
+      "--label",
+      default="INBOX",
+      help="Gmail label name to list messages from (e.g. INBOX, Follow Up). Default: INBOX",
+  )
+  parser.add_argument(
+      "--max-messages",
+      type=int,
+      default=500,
+      metavar="N",
+      help="Maximum number of messages to fetch. Default: 1000",
+  )
+  parser.add_argument(
+      "--body-length",
+      type=int,
+      default=200,
+      metavar="N",
+      help="Max characters of body text to print per message (0 = no limit). Default: 200",
+  )
+  parser.add_argument(
+      "--spreadsheet-id",
+      metavar="ID",
+      help="Google Spreadsheet ID to append rows to (from the sheet URL). If set, each message is written as a row with sent date and parsed content.",
+  )
+  parser.add_argument(
+      "--sheet",
+      default="Sheet1",
+      metavar="NAME",
+      help="Sheet (tab) name within the spreadsheet. Default: Sheet1",
+  )
+  parser.add_argument(
+      "--content-limit",
+      type=int,
+      default=5000,
+      metavar="N",
+      help="Max characters of content per cell when writing to Sheets (cell limit 50k). Default: 50000",
+  )
+  return parser.parse_args()
+
 def decode_base64(message_bytes):
   return base64.urlsafe_b64decode(message_bytes).decode("utf-8")
 
@@ -246,50 +289,6 @@ def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit)
       .execute()
   )
   print(f"Appended {len(data_rows)} row(s) to sheet '{sheet_name}'.")
-
-
-def parse_args():
-  parser = argparse.ArgumentParser(
-      description="Fetch messages from Gmail by label and show body previews.",
-  )
-  parser.add_argument(
-      "--label",
-      default="INBOX",
-      help="Gmail label name to list messages from (e.g. INBOX, Follow Up). Default: INBOX",
-  )
-  parser.add_argument(
-      "--max-messages",
-      type=int,
-      default=10,
-      metavar="N",
-      help="Maximum number of messages to fetch. Default: 10",
-  )
-  parser.add_argument(
-      "--body-length",
-      type=int,
-      default=200,
-      metavar="N",
-      help="Max characters of body text to print per message (0 = no limit). Default: 200",
-  )
-  parser.add_argument(
-      "--spreadsheet-id",
-      metavar="ID",
-      help="Google Spreadsheet ID to append rows to (from the sheet URL). If set, each message is written as a row with sent date and parsed content.",
-  )
-  parser.add_argument(
-      "--sheet",
-      default="Sheet1",
-      metavar="NAME",
-      help="Sheet (tab) name within the spreadsheet. Default: Sheet1",
-  )
-  parser.add_argument(
-      "--content-limit",
-      type=int,
-      default=5000,
-      metavar="N",
-      help="Max characters of content per cell when writing to Sheets (cell limit 50k). Default: 50000",
-  )
-  return parser.parse_args()
 
 
 def main():
