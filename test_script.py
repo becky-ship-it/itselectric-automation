@@ -108,6 +108,28 @@ def format_sent_date(msg_response):
   return date_header or ""
 
 
+# Regex to extract structured fields from "it's electric" form emails.
+# Match against "[plain]: " + plain so the pattern matches the printed line format.
+EXTRACT_PATTERN = re.compile(
+    r"\[plain\]: it's electric (?P<name>.*?) The user has an address of (?P<address>.*?) and has an email of\s+(?P<email_1>\S+)\s+Email address submitted in form\s+(?P<email_2>\S+)"
+)
+
+
+def extract_parsed(content):
+  """
+  Try to extract name, address, email_1, email_2 from email body.
+  Pass "[plain]: " + plain so the pattern (which expects that prefix) matches.
+  Returns dict with keys name, address, email_1, email_2 if match; otherwise None.
+  """
+  if not content:
+    return None
+  text = "[plain]: " + (content if isinstance(content, str) else "")
+  match = EXTRACT_PATTERN.search(text)
+  if match:
+    return match.groupdict()
+  return None
+
+
 def _truncate_content(s, limit):
   """Normalize and truncate content for sheet cell or hashing. Same logic in both places."""
   if s is None:
@@ -119,18 +141,43 @@ def _truncate_content(s, limit):
 
 
 def _row_hash(sent_date, content, content_limit):
-  """Stable hash for (sent_date, truncated content) so we can dedupe against sheet rows."""
+  """Stable hash for (sent_date, truncated content) so we can dedupe unparsed rows."""
   key = (str(sent_date).strip() + "\n" + _truncate_content(content, content_limit)).encode("utf-8")
   return hashlib.sha256(key).hexdigest()
+
+
+def _parsed_row_hash(sent_date, name, address, email_1, email_2):
+  """Stable hash for a parsed row (extracted fields only) for dedupe."""
+  key = "\n".join(
+      str(x).strip() for x in (sent_date, name, address, email_1, email_2)
+  ).encode("utf-8")
+  return hashlib.sha256(key).hexdigest()
+
+
+def _row_to_hash(row, content_limit):
+  """
+  Compute dedupe hash for a sheet row (6 elements: date, name, address, email_1, email_2, content).
+  Parsed rows are hashed by (date, name, address, email_1, email_2); unparsed by (date, content).
+  """
+  date_cell = row[0] if len(row) > 0 else ""
+  name = row[1] if len(row) > 1 else ""
+  address = row[2] if len(row) > 2 else ""
+  email_1 = row[3] if len(row) > 3 else ""
+  email_2 = row[4] if len(row) > 4 else ""
+  content_cell = row[5] if len(row) > 5 else ""
+  if any((name, address, email_1, email_2)):
+    return _parsed_row_hash(date_cell, name, address, email_1, email_2)
+  return _row_hash(date_cell, content_cell, content_limit)
 
 
 def get_existing_row_hashes(creds, spreadsheet_id, sheet_name, content_limit):
   """
   Fetch all data rows from the sheet (skip header) and return a set of row hashes.
   Used to avoid appending rows that are already present.
+  Columns: Sent Date, Name, Address, Email 1, Email 2, Content.
   """
   service = build("sheets", "v4", credentials=creds)
-  range_name = f"'{sheet_name}'!A:B"
+  range_name = f"'{sheet_name}'!A:F"
   try:
     result = (
         service.spreadsheets()
@@ -141,30 +188,24 @@ def get_existing_row_hashes(creds, spreadsheet_id, sheet_name, content_limit):
   except HttpError:
     return set()
   values = result.get("values", [])
-  # Skip header row (first row)
   data_rows = values[1:] if len(values) > 1 else []
-  existing = set()
-  for row in data_rows:
-    date_cell = row[0] if len(row) > 0 else ""
-    content_cell = row[1] if len(row) > 1 else ""
-    existing.add(_row_hash(date_cell, content_cell, content_limit))
-  return existing
+  return set(_row_to_hash(row, content_limit) for row in data_rows)
 
 
 def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit):
   """
-  Append rows to a Google Sheet. First column = sent date, second = content.
+  Append rows to a Google Sheet. Columns: Sent Date, Name, Address, Email 1, Email 2, Content.
+  Each element of rows is (sent_date, name, address, email_1, email_2, content).
   If the sheet is empty, prepends a header row. Truncates content to content_limit chars.
   """
   service = build("sheets", "v4", credentials=creds)
-  range_name = f"'{sheet_name}'!A:B"
+  range_name = f"'{sheet_name}'!A:F"
 
-  # Optionally add header if sheet is empty
   try:
     result = (
         service.spreadsheets()
         .values()
-        .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:B1")
+        .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:F1")
         .execute()
     )
     values = result.get("values", [])
@@ -173,15 +214,24 @@ def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit)
     has_header = False
 
   data_rows = []
-  for sent_date, content in rows:
-    data_rows.append([sent_date, _truncate_content(content, content_limit)])
+  for sent_date, name, address, email_1, email_2, content in rows:
+    data_rows.append([
+        sent_date,
+        name,
+        address,
+        email_1,
+        email_2,
+        _truncate_content(content, content_limit),
+    ])
 
   if not data_rows:
     return
 
   body = {"values": data_rows}
   if not has_header:
-    body["values"] = [["Sent Date", "Content"]] + body["values"]
+    body["values"] = [
+        ["Sent Date", "Name", "Address", "Email 1", "Email 2", "Content"]
+    ] + body["values"]
 
   (
       service.spreadsheets()
@@ -315,7 +365,19 @@ def main():
         print("No body found for message.")
 
       if args.spreadsheet_id:
-        sheet_rows.append((sent_date, plain or ""))
+        content = plain or ""
+        parsed = extract_parsed(content)
+        if parsed:
+          sheet_rows.append((
+              sent_date,
+              parsed["name"],
+              parsed["address"],
+              parsed["email_1"],
+              parsed["email_2"],
+              content,
+          ))
+        else:
+          sheet_rows.append((sent_date, "", "", "", "", content))
 
     if args.spreadsheet_id and sheet_rows:
       existing_hashes = get_existing_row_hashes(
@@ -324,11 +386,14 @@ def main():
           args.sheet,
           args.content_limit,
       )
-      new_rows = [
-          (sent_date, content)
-          for sent_date, content in sheet_rows
-          if _row_hash(sent_date, content, args.content_limit) not in existing_hashes
-      ]
+
+      def row_hash_for(r):
+        sent_date, name, address, email_1, email_2, content = r
+        if any((name, address, email_1, email_2)):
+          return _parsed_row_hash(sent_date, name, address, email_1, email_2)
+        return _row_hash(sent_date, content, args.content_limit)
+
+      new_rows = [r for r in sheet_rows if row_hash_for(r) not in existing_hashes]
       skipped = len(sheet_rows) - len(new_rows)
       if skipped:
         print(f"Skipping {skipped} row(s) already on sheet.")
