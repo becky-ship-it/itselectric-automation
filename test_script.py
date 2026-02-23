@@ -1,7 +1,9 @@
 import argparse
 import base64
 import os.path
+import re
 
+from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -61,6 +63,27 @@ def get_body_from_payload(payload):
       if m == mime:
         return (m, text)
   return candidates[0]
+
+
+def html_to_plain_text(html_str):
+  """
+  Convert HTML email body to plain text using BeautifulSoup.
+  Strips tags and normalizes whitespace for easier string extraction.
+  """
+  soup = BeautifulSoup(html_str, "html.parser")
+  text = soup.get_text(separator=" ", strip=True)
+  # Collapse runs of whitespace/newlines to a single space
+  return re.sub(r"\s+", " ", text).strip()
+
+
+def body_to_plain_text(mime_type, body_str):
+  """
+  Return plain text from a message body. If mime_type is text/html,
+  parse with BeautifulSoup; otherwise return the string as-is.
+  """
+  if mime_type and mime_type.lower() == "text/html":
+    return html_to_plain_text(body_str)
+  return body_str
 
 
 def parse_args():
@@ -149,11 +172,12 @@ def main():
 
       mime_type, body_text = get_body_from_payload(payload)
       if body_text is not None:
-        if args.body_length and len(body_text) > args.body_length:
-          body_preview = body_text[: args.body_length] + "..."
+        plain = body_to_plain_text(mime_type, body_text)
+        if args.body_length and len(plain) > args.body_length:
+          body_preview = plain[: args.body_length] + "..."
         else:
-          body_preview = body_text
-        print(f"[{mime_type}]:", body_preview)
+          body_preview = plain
+        print(f"[plain]:", body_preview)
       else:
         print("No body found for message.")
 
