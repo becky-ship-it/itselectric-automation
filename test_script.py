@@ -1,5 +1,6 @@
-import os.path
+import argparse
 import base64
+import os.path
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -62,10 +63,35 @@ def get_body_from_payload(payload):
   return candidates[0]
 
 
+def parse_args():
+  parser = argparse.ArgumentParser(
+      description="Fetch messages from Gmail by label and show body previews.",
+  )
+  parser.add_argument(
+      "--label",
+      default="INBOX",
+      help="Gmail label name to list messages from (e.g. INBOX, Follow Up). Default: INBOX",
+  )
+  parser.add_argument(
+      "--max-messages",
+      type=int,
+      default=10,
+      metavar="N",
+      help="Maximum number of messages to fetch. Default: 10",
+  )
+  parser.add_argument(
+      "--body-length",
+      type=int,
+      default=200,
+      metavar="N",
+      help="Max characters of body text to print per message (0 = no limit). Default: 200",
+  )
+  return parser.parse_args()
+
+
 def main():
-  """Shows basic usage of the Gmail API.
-  Lists the user's Gmail labels.
-  """
+  args = parse_args()
+
   creds = None
   # The file token.json stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
@@ -95,22 +121,26 @@ def main():
     results = service.users().labels().list(userId="me").execute()
     labels = results.get("labels", [])
 
-
     if not labels:
       print("No labels found.")
       return
-    id_cable_robot = None
-    print("Labels:")
+
+    label_id = None
     for label in labels:
-      if label["name"] == "Cable Robot":
-        id_cable_robot = label["id"]
+      if label["name"] == args.label:
+        label_id = label["id"]
         break
-    if not id_cable_robot:
-      print("No Cable Robot label found.")
+    if not label_id:
+      print(f"Label '{args.label}' not found.")
       return
-    print("Cable Robot label ID:", id_cable_robot)
-    messages = service.users().messages().list(userId="me", labelIds=[id_cable_robot], maxResults=10).execute()
-    message_ids = [message["id"] for message in messages.get("messages", [])]
+    print(f"Label '{args.label}' ID: {label_id}")
+
+    messages = service.users().messages().list(
+        userId="me",
+        labelIds=[label_id],
+        maxResults=args.max_messages,
+    ).execute()
+    message_ids = [m["id"] for m in messages.get("messages", [])]
     print("Message IDs:", message_ids)
 
     for message_id in message_ids:
@@ -119,13 +149,18 @@ def main():
 
       mime_type, body_text = get_body_from_payload(payload)
       if body_text is not None:
-        print(f"[{mime_type}]:", body_text[:200] + "..." if len(body_text) > 200 else body_text)
+        if args.body_length and len(body_text) > args.body_length:
+          body_preview = body_text[: args.body_length] + "..."
+        else:
+          body_preview = body_text
+        print(f"[{mime_type}]:", body_preview)
       else:
         print("No body found for message.")
 
   except HttpError as error:
     # TODO(developer) - Handle errors from gmail API.
     print(f"An error occurred: {error}")
+
 
 if __name__ == "__main__":
   main()
