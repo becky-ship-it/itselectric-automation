@@ -1,5 +1,6 @@
 import argparse
 import base64
+import hashlib
 import os.path
 import re
 from datetime import datetime, timezone
@@ -107,6 +108,49 @@ def format_sent_date(msg_response):
   return date_header or ""
 
 
+def _truncate_content(s, limit):
+  """Normalize and truncate content for sheet cell or hashing. Same logic in both places."""
+  if s is None:
+    return ""
+  s = str(s).strip()
+  if len(s) <= limit:
+    return s
+  return s[: limit - 3] + "..."
+
+
+def _row_hash(sent_date, content, content_limit):
+  """Stable hash for (sent_date, truncated content) so we can dedupe against sheet rows."""
+  key = (str(sent_date).strip() + "\n" + _truncate_content(content, content_limit)).encode("utf-8")
+  return hashlib.sha256(key).hexdigest()
+
+
+def get_existing_row_hashes(creds, spreadsheet_id, sheet_name, content_limit):
+  """
+  Fetch all data rows from the sheet (skip header) and return a set of row hashes.
+  Used to avoid appending rows that are already present.
+  """
+  service = build("sheets", "v4", credentials=creds)
+  range_name = f"'{sheet_name}'!A:B"
+  try:
+    result = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=spreadsheet_id, range=range_name)
+        .execute()
+    )
+  except HttpError:
+    return set()
+  values = result.get("values", [])
+  # Skip header row (first row)
+  data_rows = values[1:] if len(values) > 1 else []
+  existing = set()
+  for row in data_rows:
+    date_cell = row[0] if len(row) > 0 else ""
+    content_cell = row[1] if len(row) > 1 else ""
+    existing.add(_row_hash(date_cell, content_cell, content_limit))
+  return existing
+
+
 def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit):
   """
   Append rows to a Google Sheet. First column = sent date, second = content.
@@ -128,17 +172,9 @@ def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit)
   except HttpError:
     has_header = False
 
-  def truncate(s, limit):
-    if s is None:
-      return ""
-    s = str(s).strip()
-    if len(s) <= limit:
-      return s
-    return s[: limit - 3] + "..."
-
   data_rows = []
   for sent_date, content in rows:
-    data_rows.append([sent_date, truncate(content, content_limit)])
+    data_rows.append([sent_date, _truncate_content(content, content_limit)])
 
   if not data_rows:
     return
@@ -282,13 +318,30 @@ def main():
         sheet_rows.append((sent_date, plain or ""))
 
     if args.spreadsheet_id and sheet_rows:
-      append_rows_to_sheet(
+      existing_hashes = get_existing_row_hashes(
           creds,
           args.spreadsheet_id,
           args.sheet,
-          sheet_rows,
           args.content_limit,
       )
+      new_rows = [
+          (sent_date, content)
+          for sent_date, content in sheet_rows
+          if _row_hash(sent_date, content, args.content_limit) not in existing_hashes
+      ]
+      skipped = len(sheet_rows) - len(new_rows)
+      if skipped:
+        print(f"Skipping {skipped} row(s) already on sheet.")
+      if new_rows:
+        append_rows_to_sheet(
+            creds,
+            args.spreadsheet_id,
+            args.sheet,
+            new_rows,
+            args.content_limit,
+        )
+      elif not new_rows and sheet_rows:
+        print("All fetched messages already exist on the sheet; nothing to append.")
 
   except HttpError as error:
     # TODO(developer) - Handle errors from gmail API.
