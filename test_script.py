@@ -2,6 +2,7 @@ import argparse
 import base64
 import os.path
 import re
+from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
@@ -11,7 +12,10 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
 
 def decode_base64(message_bytes):
   return base64.urlsafe_b64decode(message_bytes).decode("utf-8")
@@ -86,6 +90,78 @@ def body_to_plain_text(mime_type, body_str):
   return body_str
 
 
+def format_sent_date(msg_response):
+  """
+  Return a human-readable sent date from a Gmail message response.
+  Uses internalDate (epoch ms); falls back to Date header if present.
+  """
+  internal = msg_response.get("internalDate")
+  if internal:
+    try:
+      ts = int(internal) / 1000
+      return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (ValueError, TypeError):
+      pass
+  payload = msg_response.get("payload", {})
+  date_header = extract_field(payload, "Date")
+  return date_header or ""
+
+
+def append_rows_to_sheet(creds, spreadsheet_id, sheet_name, rows, content_limit):
+  """
+  Append rows to a Google Sheet. First column = sent date, second = content.
+  If the sheet is empty, prepends a header row. Truncates content to content_limit chars.
+  """
+  service = build("sheets", "v4", credentials=creds)
+  range_name = f"'{sheet_name}'!A:B"
+
+  # Optionally add header if sheet is empty
+  try:
+    result = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:B1")
+        .execute()
+    )
+    values = result.get("values", [])
+    has_header = bool(values)
+  except HttpError:
+    has_header = False
+
+  def truncate(s, limit):
+    if s is None:
+      return ""
+    s = str(s).strip()
+    if len(s) <= limit:
+      return s
+    return s[: limit - 3] + "..."
+
+  data_rows = []
+  for sent_date, content in rows:
+    data_rows.append([sent_date, truncate(content, content_limit)])
+
+  if not data_rows:
+    return
+
+  body = {"values": data_rows}
+  if not has_header:
+    body["values"] = [["Sent Date", "Content"]] + body["values"]
+
+  (
+      service.spreadsheets()
+      .values()
+      .append(
+          spreadsheetId=spreadsheet_id,
+          range=range_name,
+          valueInputOption="USER_ENTERED",
+          insertDataOption="INSERT_ROWS",
+          body=body,
+      )
+      .execute()
+  )
+  print(f"Appended {len(data_rows)} row(s) to sheet '{sheet_name}'.")
+
+
 def parse_args():
   parser = argparse.ArgumentParser(
       description="Fetch messages from Gmail by label and show body previews.",
@@ -108,6 +184,24 @@ def parse_args():
       default=200,
       metavar="N",
       help="Max characters of body text to print per message (0 = no limit). Default: 200",
+  )
+  parser.add_argument(
+      "--spreadsheet-id",
+      metavar="ID",
+      help="Google Spreadsheet ID to append rows to (from the sheet URL). If set, each message is written as a row with sent date and parsed content.",
+  )
+  parser.add_argument(
+      "--sheet",
+      default="Sheet1",
+      metavar="NAME",
+      help="Sheet (tab) name within the spreadsheet. Default: Sheet1",
+  )
+  parser.add_argument(
+      "--content-limit",
+      type=int,
+      default=5000,
+      metavar="N",
+      help="Max characters of content per cell when writing to Sheets (cell limit 50k). Default: 50000",
   )
   return parser.parse_args()
 
@@ -166,11 +260,14 @@ def main():
     message_ids = [m["id"] for m in messages.get("messages", [])]
     print("Message IDs:", message_ids)
 
+    sheet_rows = []
     for message_id in message_ids:
       msg_response = service.users().messages().get(userId="me", id=message_id).execute()
       payload = msg_response.get("payload", {})
 
+      sent_date = format_sent_date(msg_response)
       mime_type, body_text = get_body_from_payload(payload)
+      plain = None
       if body_text is not None:
         plain = body_to_plain_text(mime_type, body_text)
         if args.body_length and len(plain) > args.body_length:
@@ -180,6 +277,18 @@ def main():
         print(f"[plain]:", body_preview)
       else:
         print("No body found for message.")
+
+      if args.spreadsheet_id:
+        sheet_rows.append((sent_date, plain or ""))
+
+    if args.spreadsheet_id and sheet_rows:
+      append_rows_to_sheet(
+          creds,
+          args.spreadsheet_id,
+          args.sheet,
+          sheet_rows,
+          args.content_limit,
+      )
 
   except HttpError as error:
     # TODO(developer) - Handle errors from gmail API.
