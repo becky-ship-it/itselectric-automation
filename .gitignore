@@ -1,3 +1,20 @@
-# Never send token into github
+# Credentials — never commit
 token.json
 credentials.json
+
+# Claude context — local only
+CLAUDE.md
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.eggs/
+
+# Tools
+.ruff_cache/
+.pytest_cache/
+.coverage
