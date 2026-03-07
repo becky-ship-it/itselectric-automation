@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "itselectric-automation"
+version = "0.1.0"
+description = "Gmail-to-Sheets automation for It's Electric form emails"
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "google-api-python-client>=2.190.0",
+    "google-auth>=2.48.0",
+    "google-auth-httplib2>=0.3.0",
+    "google-auth-oauthlib>=1.2.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+itselectric = "itselectric.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/itselectric"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
