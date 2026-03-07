@@ -12,7 +12,7 @@ from .sheets import append_rows, get_existing_hashes, row_hash
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fetch messages from Gmail by label and record extracted data in a Google Sheet.",
+        description="Fetch Gmail messages by label and record extracted data in a Google Sheet.",
     )
     parser.add_argument(
         "--label",
@@ -72,7 +72,8 @@ def main() -> None:
         plain = None
         if body_text is not None:
             plain = body_to_plain(mime_type, body_text)
-            preview = plain[: args.body_length] + "..." if args.body_length and len(plain) > args.body_length else plain
+            over = args.body_length and len(plain) > args.body_length
+            preview = plain[: args.body_length] + "..." if over else plain
             print(f"[plain]: {preview}")
         else:
             print("No body found for message.")

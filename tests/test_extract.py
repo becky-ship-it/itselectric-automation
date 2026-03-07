@@ -1,9 +1,7 @@
 """Tests for email extraction logic."""
 
-import pytest
 
 from itselectric.extract import extract_parsed
-
 
 SAMPLE_BODY = (
     "it's electric John Smith "
