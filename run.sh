@@ -40,7 +40,8 @@ if [[ -f credentials.json ]]; then
   else
     echo "credentials.json found. Running script (preview only; pass spreadsheet ID and/or label to customize)."
   fi
-  python test_script.py "${ARGS[@]}"
+  pip install --quiet -e .
+  python -m itselectric.cli "${ARGS[@]}"
 else
   echo ""
   echo "Setup complete. Add credentials.json (OAuth client config from Google Cloud Console),"
