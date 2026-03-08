@@ -24,5 +24,4 @@ dist/
 
 # PyInstaller build output
 build/
-dist/
 *.spec.bak
