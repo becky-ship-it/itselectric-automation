@@ -49,30 +49,43 @@ class EmailSheetsApp(ctk.CTk):
         super().__init__()
 
         # Fix HiDPI/Retina scaling on macOS. The Tcl/Tk bundled by PyInstaller
-        # often reports a scale factor of 1.0 even on Retina displays, making
-        # the window appear very small. Detect and correct it.
+        # reports a scale of 1.0 even on Retina displays. When we force it to
+        # 2.0, Tk geometry() uses physical screen pixels, so we must also double
+        # the window dimensions so content isn't clipped.
+        self._tk_scale = 1.0
         if sys.platform == "darwin":
             try:
                 current = float(self.tk.call("tk", "scaling"))
                 if current < 1.5:
                     self.tk.call("tk", "scaling", 2.0)
+                    self._tk_scale = 2.0
             except Exception:
                 pass
 
+        # Base logical size — scaled up to physical pixels when on Retina
+        base_w, base_h = 560, 660
+        phys_w = int(base_w * self._tk_scale)
+        phys_h = int(base_h * self._tk_scale)
+
         self.title("it's electric automation")
-        self.geometry("760x900")
+        self.geometry(f"{phys_w}x{phys_h}")
         self.resizable(False, False)
         self.configure(fg_color=DARK_BG)
 
         self._yaml_path = ctk.StringVar(value="")
         self._running   = False
 
-        self._build_ui()
+        self._build_ui(self._tk_scale)
 
     # ── UI Construction ────────────────────────────────────────────────────────
-    def _build_ui(self):
+    def _build_ui(self, scale: float = 1.0):
+        # scale is used for fixed-pixel dimensions (header, log, status badge)
+        # so they fill the window correctly on both Retina and non-Retina.
+        def px(n):
+            return int(n * scale)
+
         # Header
-        header = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=0, height=64)
+        header = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=0, height=px(64))
         header.pack(fill="x")
         header.pack_propagate(False)
 
@@ -138,7 +151,7 @@ class EmailSheetsApp(ctk.CTk):
 
         self._log = ctk.CTkTextbox(
             card,
-            height=350,
+            height=px(220),
             fg_color="#12151f",
             border_color=BORDER,
             border_width=1,
@@ -155,7 +168,7 @@ class EmailSheetsApp(ctk.CTk):
 
         # Status badge
         self._status_frame = ctk.CTkFrame(
-            card, fg_color="#12151f", corner_radius=10, height=52
+            card, fg_color="#12151f", corner_radius=10, height=px(52)
         )
         self._status_frame.pack(fill="x", padx=24)
         self._status_frame.pack_propagate(False)
