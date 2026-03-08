@@ -1,0 +1,12 @@
+# Pipeline configuration for itselectric-automation.
+# Copy this file to config.yaml and fill in your values.
+# config.yaml is gitignored — never commit it.
+#
+# CLI flags override these values when provided.
+
+label: INBOX
+max_messages: 100
+body_length: 200
+spreadsheet_id: ""   # Google Spreadsheet ID from the sheet URL
+sheet: Sheet1
+content_limit: 5000
