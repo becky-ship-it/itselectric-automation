@@ -48,8 +48,8 @@ class EmailSheetsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Email → Sheets")
-        self.geometry("560x620")
+        self.title("it's electric automation")
+        self.geometry("760x900")
         self.resizable(False, False)
         self.configure(fg_color=DARK_BG)
 
@@ -67,7 +67,7 @@ class EmailSheetsApp(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="✉  Email → Sheets",
+            text="it's electric automation",
             font=ctk.CTkFont(family="Georgia", size=20, weight="bold"),
             text_color=TEXT_PRIMARY,
         ).place(relx=0.5, rely=0.5, anchor="center")
@@ -127,7 +127,7 @@ class EmailSheetsApp(ctk.CTk):
 
         self._log = ctk.CTkTextbox(
             card,
-            height=200,
+            height=350,
             fg_color="#12151f",
             border_color=BORDER,
             border_width=1,
