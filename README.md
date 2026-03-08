@@ -5,72 +5,98 @@ Automation that uses the Google APIs to process Gmail messages and record extrac
 ## What it does
 
 - **Gmail:** Fetches messages by label (e.g. INBOX), decodes body (HTML or plain), and prints a plain-text preview.
-- **Extract:** Applies a regex to each body to pull out structured fields for “it’s electric” form emails: **name**, **address**, **email 1**, **email 2**. Non-matching messages are still recorded with empty parsed columns.
-- **Sheets:** Optionally appends rows to a Google Sheet with columns: **Sent Date**, **Name**, **Address**, **Email 1**, **Email 2**, **Content**. The script reads existing sheet data, hashes rows, and only appends rows that are not already present (no duplicates on re-run).
+- **Extract:** Applies a regex to each body to pull out structured fields for "it's electric" form emails: **name**, **address**, **email 1**, **email 2**. Non-matching messages are still recorded with empty parsed columns.
+- **Sheets:** Optionally appends rows to a Google Sheet with columns: **Sent Date**, **Name**, **Address**, **Email 1**, **Email 2**, **Content**. Rows are hashed before writing — re-running never creates duplicates.
 
 ## Setup
 
-1. **Environment:** From the repo root run `./run.sh` to create a `venv` and install dependencies. Override with `VENV_DIR=myenv` or `PYTHON=python3.11` if needed.
-2. **OAuth:** In [Google Cloud Console](https://console.cloud.google.com/) enable the Gmail API and Google Sheets API, create an OAuth 2.0 Client ID (Desktop app), and save the JSON as `credentials.json` in the repo root. Do not commit this file.
-3. **First run:** Run `./run.sh` again; a browser will open for sign-in and the script will create `token.json`. Do not commit `token.json`.
+1. **OAuth:** In [Google Cloud Console](https://console.cloud.google.com/) enable the Gmail API and Google Sheets API, create an OAuth 2.0 Client ID (Desktop app), and save the JSON as `credentials.json` in the repo root. Do not commit this file.
 
-If `credentials.json` is already present, `./run.sh` runs the Python script automatically. Optional arguments: **spreadsheet ID** (to append to a sheet) and **Gmail label** (e.g. INBOX, "Follow Up"):
+2. **Config:** Copy the example config and fill in your values:
+   ```bash
+   cp config.example.yaml config.yaml
+   ```
+   Edit `config.yaml` with your spreadsheet ID, label, and any other settings. This file is gitignored — do not commit it.
 
-```bash
-./run.sh [SPREADSHEET_ID] [LABEL]
-```
+3. **Install dependencies:**
+   ```bash
+   # Recommended
+   uv sync
 
-With no arguments, the script runs in preview-only mode (default label INBOX). For full control and extra options, activate the venv and run the script directly (see below).
+   # Or with the legacy shell runner (creates a venv automatically)
+   ./run.sh
+   ```
+
+4. **First run:** A browser will open for Google sign-in. The script creates `token.json` automatically. Do not commit this file. If the token expires or is revoked, it is deleted and re-created automatically on the next run.
+
+## Configuration
+
+All settings can be defined in `config.yaml` (copy from `config.example.yaml`). CLI flags override config values when provided.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `label` | `INBOX` | Gmail label to read (e.g. `INBOX`, `Follow Up`). |
+| `max_messages` | `100` | Max number of messages to fetch. |
+| `body_length` | `200` | Max characters of body to print per message (0 = no limit). |
+| `spreadsheet_id` | — | Google Spreadsheet ID from the sheet URL. If not set, runs in preview-only mode. |
+| `sheet` | `Sheet1` | Name of the sheet (tab) inside the spreadsheet. |
+| `content_limit` | `5000` | Max characters for the Content column in Sheets. |
+
+The spreadsheet ID is the long string in the sheet URL:
+`https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit`
 
 ## Usage
 
-**One-shot (recommended when credentials exist):**
+**With `uv` (recommended):**
 
 ```bash
-./run.sh                                    # preview only (INBOX)
+uv run itselectric                            # uses config.yaml
+uv run itselectric --label "Follow Up"        # override label only
+uv run itselectric --spreadsheet-id "YOUR_ID" # override spreadsheet only
+```
+
+**With the legacy shell runner:**
+
+```bash
+./run.sh                                    # uses config.yaml settings
 ./run.sh YOUR_SPREADSHEET_ID                # append to sheet, INBOX
-./run.sh YOUR_SPREADSHEET_ID "Follow Up"    # append to sheet, label "Follow Up"
-./run.sh "" "Follow Up"                     # preview only, label "Follow Up"
+./run.sh YOUR_SPREADSHEET_ID "Follow Up"    # append to sheet, custom label
+./run.sh "" "Follow Up"                     # preview only, custom label
 ```
 
-**Manual run with all options:**
-
-```bash
-source venv/bin/activate
-python test_script.py [options]
-```
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--label` | INBOX | Gmail label to read (e.g. INBOX, Follow Up). |
-| `--max-messages` | 10 | Max number of messages to fetch. |
-| `--body-length` | 200 | Max characters of body to print per message (0 = no limit). |
-| `--spreadsheet-id` | — | If set, append extracted rows to this Google Sheet (ID from the sheet URL). |
-| `--sheet` | Sheet1 | Name of the sheet (tab) inside the spreadsheet. |
-| `--content-limit` | 5000 | Max characters for the Content column in Sheets (cell limit 50k). |
-
-**Examples**
-
-```bash
-# List and preview up to 5 messages from INBOX (no Sheets)
-python test_script.py --label INBOX --max-messages 5
-
-# Same, and append new rows to a Google Sheet (skips rows already on the sheet)
-python test_script.py --label INBOX --max-messages 20 --spreadsheet-id "YOUR_SPREADSHEET_ID"
-
-# Use a different tab and cap content length
-python test_script.py --spreadsheet-id "YOUR_SPREADSHEET_ID" --sheet "Emails" --content-limit 10000
-```
-
-The spreadsheet ID is the long string in the URL:  
-`https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit`
+Note: CLI flags passed to `run.sh` take precedence over `config.yaml`.
 
 ## Repo layout
 
-- `test_script.py` — Main script: Gmail fetch, regex extraction, optional Sheets append with deduplication.
-- `run.sh` — Creates venv, installs from `requirements.txt`, and runs the script (pass spreadsheet ID to append to a sheet).
-- `credentials.json` — OAuth client config (you add this; do not commit).
-- `token.json` — User tokens (created on first run; do not commit).
+```
+src/itselectric/
+  auth.py      — OAuth credential management (auto-recovers revoked tokens)
+  gmail.py     — Gmail API: fetch, decode multipart bodies, strip HTML
+  extract.py   — Regex extraction: name, address, email_1, email_2
+  sheets.py    — Sheets API: hash-based deduplication, append rows
+  cli.py       — Entry point: loads config.yaml, parses CLI args, orchestrates
+tests/
+  test_extract.py   — Unit tests for extraction regex
+  test_sheets.py    — Unit tests for hashing/dedup logic
+config.example.yaml — Template for config.yaml (commit this, not config.yaml)
+pyproject.toml      — Package config, dependencies, linting, test settings
+run.sh              — Legacy shell runner (venv-based, no uv required)
+credentials.json    — OAuth client config (you add this; do not commit)
+token.json          — User tokens (created on first run; do not commit)
+```
+
+## Development
+
+```bash
+# Install with dev dependencies
+uv sync --extra dev
+
+# Run tests
+uv run pytest
+
+# Lint
+uv run ruff check src/ tests/
+```
 
 ## Future work
 
