@@ -21,3 +21,8 @@ dist/
 .ruff_cache/
 .pytest_cache/
 .coverage
+
+# PyInstaller build output
+build/
+dist/
+*.spec.bak

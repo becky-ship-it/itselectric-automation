@@ -14,13 +14,15 @@ dependencies = [
     "google-auth-httplib2>=0.3.0",
     "google-auth-oauthlib>=1.2.4",
     "pyyaml>=6.0",
+    "customtkinter>=5.2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.4"]
+dev = ["pytest>=8.0", "ruff>=0.4", "pyinstaller>=6.0"]
 
 [project.scripts]
-itselectric = "itselectric.cli:main"
+itselectric     = "itselectric.cli:main"
+itselectric-gui = "itselectric.gui:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/itselectric"]
