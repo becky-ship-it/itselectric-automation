@@ -247,40 +247,41 @@ class EmailSheetsApp(ctk.CTk):
 
     def _run_pipeline(self, yaml_path: str):
         """Run the itselectric pipeline, capturing stdout into the log widget."""
-        # Import here so PyInstaller can tree-shake correctly
-        from googleapiclient.errors import HttpError
-
-        from itselectric.auth import get_credentials
-        from itselectric.extract import extract_parsed
-        from itselectric.gmail import (
-            body_to_plain,
-            fetch_messages,
-            format_sent_date,
-            get_body_from_payload,
-        )
-        from itselectric.sheets import append_rows, get_existing_hashes, row_hash
-
-        # Redirect print() to the log widget
+        # Redirect stdout before imports so any error (including ImportError) appears in GUI.
         old_stdout = sys.stdout
         sys.stdout = _LogWriter(lambda t: self.after(0, self._append_log, t))
-        print(f"Starting pipeline with config: {yaml_path}")
 
-        success, message = True, "Done"
+        success, message = False, "Unknown error"
         try:
+            # Import here so PyInstaller can tree-shake correctly.
+            from googleapiclient.errors import HttpError
+
+            from itselectric.auth import get_credentials
+            from itselectric.extract import extract_parsed
+            from itselectric.gmail import (
+                body_to_plain,
+                fetch_messages,
+                format_sent_date,
+                get_body_from_payload,
+            )
+            from itselectric.sheets import append_rows, get_existing_hashes, row_hash
+
+            print(f"Starting pipeline with config: {yaml_path}")
+
             # Load config
             with open(yaml_path) as f:
                 config = yaml.safe_load(f) or {}
 
-            label         = config.get("label", "INBOX")
-            max_messages  = int(config.get("max_messages", 100))
-            body_length   = int(config.get("body_length", 200))
+            label          = config.get("label", "INBOX")
+            max_messages   = int(config.get("max_messages", 100))
+            body_length    = int(config.get("body_length", 200))
             spreadsheet_id = config.get("spreadsheet_id", "").strip()
-            sheet_name    = config.get("sheet", "Sheet1")
-            content_limit = int(config.get("content_limit", 5000))
+            sheet_name     = config.get("sheet", "Sheet1")
+            content_limit  = int(config.get("content_limit", 5000))
 
             # Resolve credentials relative to config file location
             print("Resolving credentials …")
-            config_dir = str(Path(yaml_path).parent)
+            config_dir       = str(Path(yaml_path).parent)
             token_file       = os.path.join(config_dir, "token.json")
             credentials_file = os.path.join(config_dir, "credentials.json")
 
@@ -340,20 +341,22 @@ class EmailSheetsApp(ctk.CTk):
                 print(message)
             else:
                 message = "No messages found."
+                print(message)
+
+            success = True
 
         except HttpError as e:
-            success, message = False, f"API error: {e}"
+            message = f"API error: {e}"
             print(message)
         except FileNotFoundError as e:
-            success, message = False, f"File not found: {e}"
+            message = f"File not found: {e}"
             print(message)
         except Exception as e:
-            success, message = False, str(e)
+            message = str(e)
             print(f"Error: {e}")
         finally:
             sys.stdout = old_stdout
-
-        self.after(0, self._on_done, success, message)
+            self.after(0, self._on_done, success, message)
 
     def _on_done(self, success: bool, message: str):
         self._running = False
