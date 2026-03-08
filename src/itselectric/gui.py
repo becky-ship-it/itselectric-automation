@@ -48,17 +48,28 @@ class EmailSheetsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Fix HiDPI/Retina scaling on macOS. The Tcl/Tk bundled by PyInstaller
-        # reports a scale of 1.0 even on Retina displays. When we force it to
-        # 2.0, Tk geometry() uses physical screen pixels, so we must also double
-        # the window dimensions so content isn't clipped.
+        # Fix HiDPI/Retina scaling on macOS.
+        #
+        # Tk geometry() always uses physical screen pixels. The base window size
+        # is defined in logical units, so we multiply by the actual scale factor
+        # to get the correct physical size.
+        #
+        # PyInstaller's bundled Tcl/Tk sometimes reports scale=1.0 on Retina.
+        # We detect this by checking whether the physical screen resolution looks
+        # Retina (≥2560 wide or ≥1600 tall) and force 2.0 if so.
         self._tk_scale = 1.0
         if sys.platform == "darwin":
             try:
                 current = float(self.tk.call("tk", "scaling"))
-                if current < 1.5:
-                    self.tk.call("tk", "scaling", 2.0)
-                    self._tk_scale = 2.0
+                if current >= 1.5:
+                    # Correctly detected — use it as-is
+                    self._tk_scale = current
+                else:
+                    # Low scale reported — check physical resolution to decide
+                    if self.winfo_screenwidth() >= 2560 or self.winfo_screenheight() >= 1600:
+                        self.tk.call("tk", "scaling", 2.0)
+                        self._tk_scale = 2.0
+                    # else: genuine non-Retina display, leave at 1.0
             except Exception:
                 pass
 
