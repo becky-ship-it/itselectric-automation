@@ -38,9 +38,11 @@ class _LogWriter:
     def write(self, text):
         if text and text.strip():
             self._callback(text.rstrip())
+            self._orig.write(text)
+            self._orig.flush()
 
     def flush(self):
-        pass
+        self._orig.flush()
 
 
 # ── Main App ───────────────────────────────────────────────────────────────────
