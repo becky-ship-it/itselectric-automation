@@ -1,7 +1,9 @@
 """CLI entry point for It's Electric Gmail-to-Sheets automation."""
 
 import argparse
+import os
 
+import yaml
 from googleapiclient.errors import HttpError
 
 from .auth import get_credentials
@@ -9,53 +11,76 @@ from .extract import extract_parsed
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
 from .sheets import append_rows, get_existing_hashes, row_hash
 
+CONFIG_FILE = "config.yaml"
 
-def parse_args() -> argparse.Namespace:
+_DEFAULTS = {
+    "label": "INBOX",
+    "max_messages": 100,
+    "body_length": 200,
+    "spreadsheet_id": "",
+    "sheet": "Sheet1",
+    "content_limit": 5000,
+}
+
+
+def _load_config(path: str = CONFIG_FILE) -> dict:
+    """Load config.yaml if present, returning a dict merged over defaults."""
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    print(f"Loaded config from {path}")
+    return data
+
+
+def parse_args(config: dict) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Fetch Gmail messages by label and record extracted data in a Google Sheet.",
     )
     parser.add_argument(
         "--label",
-        default="INBOX",
-        help="Gmail label name to list messages from (e.g. INBOX, Follow Up). Default: INBOX",
+        default=config.get("label", _DEFAULTS["label"]),
+        help="Gmail label name to list messages from (e.g. INBOX, Follow Up).",
     )
     parser.add_argument(
         "--max-messages",
         type=int,
-        default=100,
+        default=config.get("max_messages", _DEFAULTS["max_messages"]),
         metavar="N",
-        help="Maximum number of messages to fetch. Default: 100",
+        help="Maximum number of messages to fetch.",
     )
     parser.add_argument(
         "--body-length",
         type=int,
-        default=200,
+        default=config.get("body_length", _DEFAULTS["body_length"]),
         metavar="N",
-        help="Max characters of body text to print per message (0 = no limit). Default: 200",
+        help="Max characters of body text to print per message (0 = no limit).",
     )
     parser.add_argument(
         "--spreadsheet-id",
+        default=config.get("spreadsheet_id", _DEFAULTS["spreadsheet_id"]),
         metavar="ID",
         help="Google Spreadsheet ID to append rows to (from the sheet URL).",
     )
     parser.add_argument(
         "--sheet",
-        default="Sheet1",
+        default=config.get("sheet", _DEFAULTS["sheet"]),
         metavar="NAME",
-        help="Sheet (tab) name within the spreadsheet. Default: Sheet1",
+        help="Sheet (tab) name within the spreadsheet.",
     )
     parser.add_argument(
         "--content-limit",
         type=int,
-        default=5000,
+        default=config.get("content_limit", _DEFAULTS["content_limit"]),
         metavar="N",
-        help="Max characters of content per cell when writing to Sheets. Default: 5000",
+        help="Max characters of content per cell when writing to Sheets.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
-    args = parse_args()
+    config = _load_config()
+    args = parse_args(config)
     creds = get_credentials()
 
     try:
