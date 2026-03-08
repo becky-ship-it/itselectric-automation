@@ -263,6 +263,7 @@ class EmailSheetsApp(ctk.CTk):
         # Redirect print() to the log widget
         old_stdout = sys.stdout
         sys.stdout = _LogWriter(lambda t: self.after(0, self._append_log, t))
+        print(f"Starting pipeline with config: {yaml_path}")
 
         success, message = True, "Done"
         try:
@@ -278,13 +279,16 @@ class EmailSheetsApp(ctk.CTk):
             content_limit = int(config.get("content_limit", 5000))
 
             # Resolve credentials relative to config file location
+            print("Resolving credentials …")
             config_dir = str(Path(yaml_path).parent)
             token_file       = os.path.join(config_dir, "token.json")
             credentials_file = os.path.join(config_dir, "credentials.json")
 
             creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
+            print("Credentials ready. Getting messages …")
             messages = fetch_messages(creds, label, max_messages)
 
+            print(f"Processing {len(messages)} message(s) …")
             sheet_rows = []
             for msg in messages:
                 sent_date = format_sent_date(msg)
@@ -327,6 +331,7 @@ class EmailSheetsApp(ctk.CTk):
                 if new_rows:
                     append_rows(creds, spreadsheet_id, sheet_name, new_rows, content_limit)
                     message = f"Done — {len(new_rows)} row(s) added to sheet."
+                    print(message)
                 else:
                     message = "All messages already on sheet — nothing added."
                     print(message)

@@ -26,6 +26,8 @@ def get_credentials(
     if os.path.exists(token_file):
         print("Token file exists")
         creds = Credentials.from_authorized_user_file(token_file, SCOPES)
+    else:
+        print("No token file found")
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
