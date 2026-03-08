@@ -48,6 +48,17 @@ class EmailSheetsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+        # Fix HiDPI/Retina scaling on macOS. The Tcl/Tk bundled by PyInstaller
+        # often reports a scale factor of 1.0 even on Retina displays, making
+        # the window appear very small. Detect and correct it.
+        if sys.platform == "darwin":
+            try:
+                current = float(self.tk.call("tk", "scaling"))
+                if current < 1.5:
+                    self.tk.call("tk", "scaling", 2.0)
+            except Exception:
+                pass
+
         self.title("it's electric automation")
         self.geometry("760x900")
         self.resizable(False, False)
