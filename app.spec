@@ -77,4 +77,8 @@ app = BUNDLE(
     name="it's electric automation.app",
     icon=None,
     bundle_identifier="com.itselectric.automation",
+    info_plist={
+        "NSHighResolutionCapable": True,
+        "NSRequiresAquaSystemAppearance": False,
+    },
 )
