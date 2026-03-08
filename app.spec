@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller spec for the Email → Sheets macOS app.
-# Build with: pyinstaller EmailSheets.spec
+# Build with: pyinstaller app.spec
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
@@ -42,7 +42,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Email Sheets",
+    name="it's electric automation",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -65,12 +65,12 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="Email Sheets",
+    name="it's electric automation",
 )
 
 app = BUNDLE(
     coll,
-    name="Email Sheets.app",
+    name="it's electric automation.app",
     icon=None,
     bundle_identifier="com.itselectric.emailsheets",
 )
