@@ -25,3 +25,6 @@ dist/
 # PyInstaller build output
 build/
 *.spec.bak
+
+# macOS
+.DS_Store
