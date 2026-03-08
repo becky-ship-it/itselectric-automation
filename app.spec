@@ -17,6 +17,10 @@ a = Analysis(
     hiddenimports=[
         *collect_submodules("google"),
         *collect_submodules("googleapiclient"),
+        "tkinter",
+        "tkinter.ttk",
+        "tkinter.filedialog",
+        "_tkinter",
         "itselectric",
         "itselectric.auth",
         "itselectric.gmail",
