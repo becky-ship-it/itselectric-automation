@@ -66,6 +66,25 @@ uv run itselectric --spreadsheet-id "YOUR_ID" # override spreadsheet only
 
 Note: CLI flags passed to `run.sh` take precedence over `config.yaml`.
 
+## Desktop App (macOS)
+
+A polished dark-mode GUI is included. Build it as a double-clickable macOS `.app`:
+
+```bash
+./build_app.sh
+# → dist/it's electric automation.app
+```
+
+Drag `dist/it's electric automation.app` to your `/Applications` folder.
+First launch: right-click → **Open** → **Open Anyway** (macOS Gatekeeper, one-time only).
+
+Put your `config.yaml` and `credentials.json` in the same folder, then browse for `config.yaml` in the app and click **Run**. Pipeline output streams into the log in real time.
+
+To run the GUI without building the app:
+```bash
+uv run itselectric-gui
+```
+
 ## Repo layout
 
 ```
@@ -74,10 +93,13 @@ src/itselectric/
   gmail.py     — Gmail API: fetch, decode multipart bodies, strip HTML
   extract.py   — Regex extraction: name, address, email_1, email_2
   sheets.py    — Sheets API: hash-based deduplication, append rows
-  cli.py       — Entry point: loads config.yaml, parses CLI args, orchestrates
+  cli.py       — CLI entry point: loads config.yaml, parses args, orchestrates
+  gui.py       — CustomTkinter desktop GUI
 tests/
   test_extract.py   — Unit tests for extraction regex
   test_sheets.py    — Unit tests for hashing/dedup logic
+app.spec            — PyInstaller spec for building the macOS .app
+build_app.sh        — One-command build script
 config.example.yaml — Template for config.yaml (commit this, not config.yaml)
 pyproject.toml      — Package config, dependencies, linting, test settings
 run.sh              — Legacy shell runner (venv-based, no uv required)

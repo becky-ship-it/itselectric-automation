@@ -72,5 +72,5 @@ app = BUNDLE(
     coll,
     name="it's electric automation.app",
     icon=None,
-    bundle_identifier="com.itselectric.emailsheets",
+    bundle_identifier="com.itselectric.automation",
 )
