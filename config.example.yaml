@@ -10,3 +10,9 @@ body_length: 200
 spreadsheet_id: ""   # Google Spreadsheet ID from the sheet URL
 sheet: Sheet1
 content_limit: 5000
+
+# Path to EV charger locations CSV (default: bundled src/itselectric/data/chargers.csv)
+# chargers: src/itselectric/data/chargers.csv
+
+# Path to JSON file that caches geocoded addresses (avoids repeated API calls)
+geocache: geocache.json
