@@ -6,7 +6,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-COLUMNS = ["Sent Date", "Name", "Address", "Email 1", "Email 2", "Content"]
+COLUMNS = ["Sent Date", "Name", "Address", "Email 1", "Email 2", "Content", "Nearest Charger", "Distance (mi)"]
 
 
 def truncate(s, limit: int) -> str:
@@ -54,7 +54,7 @@ def get_existing_hashes(
         result = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A:F")
+            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A:H")
             .execute()
         )
     except HttpError:
@@ -71,17 +71,17 @@ def append_rows(
     content_limit: int,
 ) -> None:
     """
-    Append rows to the sheet. Each row is (sent_date, name, address, email_1, email_2, content).
+    Append rows to the sheet. Each row is (sent_date, name, address, email_1, email_2, content, nearest_charger, distance_mi).
     Prepends a header row if the sheet is currently empty.
     """
     service = build("sheets", "v4", credentials=creds)
-    range_name = f"'{sheet_name}'!A:F"
+    range_name = f"'{sheet_name}'!A:H"
 
     try:
         existing = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:F1")
+            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:H1")
             .execute()
         )
         has_header = bool(existing.get("values"))
@@ -89,8 +89,8 @@ def append_rows(
         has_header = False
 
     data = [
-        [sent_date, name, address, email_1, email_2, truncate(content, content_limit)]
-        for sent_date, name, address, email_1, email_2, content in rows
+        [sent_date, name, address, email_1, email_2, truncate(content, content_limit), nearest_charger, distance_mi]
+        for sent_date, name, address, email_1, email_2, content, nearest_charger, distance_mi in rows
     ]
     if not data:
         return
