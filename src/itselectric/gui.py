@@ -256,6 +256,7 @@ class EmailSheetsApp(ctk.CTk):
 
             from itselectric.auth import get_credentials
             from itselectric.extract import extract_parsed
+            from itselectric.fixture import load_fixture_messages
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
                 find_nearest_charger,
@@ -268,7 +269,6 @@ class EmailSheetsApp(ctk.CTk):
                 format_sent_date,
                 get_body_from_payload,
             )
-            from itselectric.fixture import load_fixture_messages
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
