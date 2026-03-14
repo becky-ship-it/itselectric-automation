@@ -2,13 +2,11 @@
 
 import json
 import textwrap
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from itselectric.geo import (
-    DEFAULT_CHARGERS_CSV,
     find_nearest_charger,
     geocode_address,
     load_chargers,
@@ -16,12 +14,15 @@ from itselectric.geo import (
 
 # ── load_chargers ─────────────────────────────────────────────────────────────
 
+
 def test_load_chargers_uses_lat_long(tmp_path):
     csv_file = tmp_path / "chargers.csv"
-    csv_file.write_text(textwrap.dedent("""\
+    csv_file.write_text(
+        textwrap.dedent("""\
         STREET,CITY,STATE,ZIPCODE,CHARGERID,NUM_OF_CHARGERS,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE
         11 Spring St,Newburgh,NY,12550,NBG01,1,41.496385,-74.01174,,
-    """))
+    """)
+    )
     chargers = load_chargers(csv_file)
     assert len(chargers) == 1
     assert chargers[0]["name"] == "11 Spring St, Newburgh, NY"
@@ -31,10 +32,12 @@ def test_load_chargers_uses_lat_long(tmp_path):
 
 def test_load_chargers_prefers_override(tmp_path):
     csv_file = tmp_path / "chargers.csv"
-    csv_file.write_text(textwrap.dedent("""\
+    csv_file.write_text(
+        textwrap.dedent("""\
         STREET,CITY,STATE,ZIPCODE,CHARGERID,NUM_OF_CHARGERS,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE
         15 Washington St.,Brooklyn,NY,11205,S01,1,40.703503,-73.989561,40.700122,-73.967773
-    """))
+    """)
+    )
     chargers = load_chargers(csv_file)
     assert chargers[0]["lat"] == pytest.approx(40.700122)
     assert chargers[0]["lon"] == pytest.approx(-73.967773)
@@ -78,6 +81,7 @@ def test_find_nearest_charger_returns_float_distance():
 
 
 # ── geocode_address ───────────────────────────────────────────────────────────
+
 
 def test_geocode_address_success(tmp_path):
     mock_location = MagicMock()

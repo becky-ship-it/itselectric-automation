@@ -2,16 +2,15 @@
 Tests for gui._run_pipeline and _LogWriter.
 
 Key behaviors under test (from the recent bug fix):
-  - _on_done is always scheduled via self.after(), even when an exception occurs
-  - sys.stdout is always restored in the finally block
-  - success=False when the pipeline raises; success=True only after full completion
-  - Correct status messages for each outcome branch
+    - _on_done is always scheduled via self.after(), even when an exception occurs
+    - sys.stdout is always restored in the finally block
+    - success=False when the pipeline raises; success=True only after full completion
+    - Correct status messages for each outcome branch
 """
 
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 
 # ---------------------------------------------------------------------------
@@ -29,8 +28,8 @@ if "customtkinter" not in sys.modules:
 
 from itselectric.gui import EmailSheetsApp, _LogWriter  # noqa: E402 — must follow stub
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _make_config(tmp_path, extra=None):
     """Write a minimal config.yaml and return its path."""
@@ -97,6 +96,7 @@ def _on_done_args(self_mock):
 
 # ── _LogWriter ─────────────────────────────────────────────────────────────────
 
+
 class TestLogWriter:
     def test_write_calls_callback_with_text(self):
         received = []
@@ -128,6 +128,7 @@ class TestLogWriter:
 
 
 # ── _run_pipeline: completion guarantees ───────────────────────────────────────
+
 
 class TestRunPipelineCompletion:
     def test_on_done_called_on_success(self, tmp_path):
@@ -202,6 +203,7 @@ class TestRunPipelineCompletion:
 
 
 # ── _run_pipeline: message content ─────────────────────────────────────────────
+
 
 class TestRunPipelineMessages:
     def test_preview_message_when_spreadsheet_id_empty(self, tmp_path):

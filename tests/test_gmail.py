@@ -2,8 +2,6 @@
 
 import base64
 
-import pytest
-
 from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload, html_to_plain
 
 
@@ -13,6 +11,7 @@ def _enc(text: str) -> str:
 
 
 # ── get_body_from_payload ──────────────────────────────────────────────────────
+
 
 class TestGetBodyFromPayload:
     def test_single_part_plain(self):
@@ -88,6 +87,7 @@ class TestGetBodyFromPayload:
 
 # ── html_to_plain / body_to_plain ──────────────────────────────────────────────
 
+
 class TestBodyToPlain:
     def test_plain_passthrough(self):
         assert body_to_plain("text/plain", "hello world") == "hello world"
@@ -120,6 +120,7 @@ class TestBodyToPlain:
 
 # ── format_sent_date ───────────────────────────────────────────────────────────
 
+
 class TestFormatSentDate:
     def test_internal_date_unix_ms(self):
         # 1704067200000 ms = 2024-01-01 00:00:00 UTC
@@ -131,18 +132,14 @@ class TestFormatSentDate:
     def test_falls_back_to_date_header_on_bad_internal_date(self):
         msg = {
             "internalDate": "not-a-number",
-            "payload": {
-                "headers": [{"name": "Date", "value": "Mon, 1 Jan 2024 00:00:00 +0000"}]
-            },
+            "payload": {"headers": [{"name": "Date", "value": "Mon, 1 Jan 2024 00:00:00 +0000"}]},
         }
         result = format_sent_date(msg)
         assert "Mon, 1 Jan 2024" in result
 
     def test_falls_back_to_date_header_when_no_internal_date(self):
         msg = {
-            "payload": {
-                "headers": [{"name": "Date", "value": "Fri, 5 Apr 2024 12:00:00 +0000"}]
-            }
+            "payload": {"headers": [{"name": "Date", "value": "Fri, 5 Apr 2024 12:00:00 +0000"}]}
         }
         result = format_sent_date(msg)
         assert "Fri, 5 Apr 2024" in result

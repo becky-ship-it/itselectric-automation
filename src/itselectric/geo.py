@@ -43,17 +43,19 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
             if not lat_raw or not lon_raw:
                 lat_raw = row["LAT"].strip()
                 lon_raw = row["LONG"].strip()
-            chargers.append({
-                "name": f"{row['STREET'].strip()}, {row['CITY'].strip()}, {row['STATE'].strip()}",
-                "lat": float(lat_raw),
-                "lon": float(lon_raw),
-            })
+            chargers.append(
+                {
+                    "name": (
+                        f"{row['STREET'].strip()}, {row['CITY'].strip()}, {row['STATE'].strip()}"
+                    ),
+                    "lat": float(lat_raw),
+                    "lon": float(lon_raw),
+                }
+            )
     return chargers
 
 
-def find_nearest_charger(
-    lat: float, lon: float, chargers: list[dict]
-) -> tuple[str, float] | None:
+def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[str, float] | None:
     """
     Find the closest charger to (lat, lon).
 

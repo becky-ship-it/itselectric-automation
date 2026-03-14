@@ -82,7 +82,9 @@ def parse_args(config: dict) -> argparse.Namespace:
         "--chargers",
         default=config.get("chargers", _DEFAULTS["chargers"]),
         metavar="PATH",
-        help="Path to chargers CSV (columns: STREET,CITY,STATE,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE).",
+        help=(
+            "Path to chargers CSV (columns: STREET,CITY,STATE,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE)."
+        ),
     )
     parser.add_argument(
         "--geocache",
@@ -140,16 +142,18 @@ def main() -> None:
                             print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
                     else:
                         print(f"  → Could not geocode: {parsed['address']!r}")
-                sheet_rows.append((
-                    sent_date,
-                    parsed["name"],
-                    parsed["address"],
-                    parsed["email_1"],
-                    parsed["email_2"],
-                    content,
-                    nearest_charger,
-                    distance_mi,
-                ))
+                sheet_rows.append(
+                    (
+                        sent_date,
+                        parsed["name"],
+                        parsed["address"],
+                        parsed["email_1"],
+                        parsed["email_2"],
+                        content,
+                        nearest_charger,
+                        distance_mi,
+                    )
+                )
             else:
                 sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 

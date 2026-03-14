@@ -1,6 +1,5 @@
 """Tests for email extraction logic."""
 
-
 from itselectric.extract import extract_parsed
 
 SAMPLE_BODY = (

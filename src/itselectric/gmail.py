@@ -92,13 +92,15 @@ def fetch_messages(creds: Credentials, label: str, max_messages: int) -> list[di
         return []
     print(f"Label '{label}' ID: {label_id}")
 
-    result = service.users().messages().list(
-        userId="me", labelIds=[label_id], maxResults=max_messages
-    ).execute()
+    result = (
+        service.users()
+        .messages()
+        .list(userId="me", labelIds=[label_id], maxResults=max_messages)
+        .execute()
+    )
     message_ids = [m["id"] for m in result.get("messages", [])]
     print("Message IDs:", message_ids)
 
     return [
-        service.users().messages().get(userId="me", id=msg_id).execute()
-        for msg_id in message_ids
+        service.users().messages().get(userId="me", id=msg_id).execute() for msg_id in message_ids
     ]

@@ -6,7 +6,16 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-COLUMNS = ["Sent Date", "Name", "Address", "Email 1", "Email 2", "Content", "Nearest Charger", "Distance (mi)"]
+COLUMNS = [
+    "Sent Date",
+    "Name",
+    "Address",
+    "Email 1",
+    "Email 2",
+    "Content",
+    "Nearest Charger",
+    "Distance (mi)",
+]
 
 
 def truncate(s, limit: int) -> str:
@@ -71,7 +80,10 @@ def append_rows(
     content_limit: int,
 ) -> None:
     """
-    Append rows to the sheet. Each row is (sent_date, name, address, email_1, email_2, content, nearest_charger, distance_mi).
+    Append rows to the sheet.
+
+    Each row is (sent_date, name, address, email_1, email_2, content,
+    nearest_charger, distance_mi).
     Prepends a header row if the sheet is currently empty.
     """
     service = build("sheets", "v4", credentials=creds)
@@ -88,10 +100,11 @@ def append_rows(
     except HttpError:
         has_header = False
 
-    data = [
-        [sent_date, name, address, email_1, email_2, truncate(content, content_limit), nearest_charger, distance_mi]
-        for sent_date, name, address, email_1, email_2, content, nearest_charger, distance_mi in rows
-    ]
+    def _fmt(r: tuple) -> list:
+        sd, nm, addr, e1, e2, body, nc, dm = r
+        return [sd, nm, addr, e1, e2, truncate(body, content_limit), nc, dm]
+
+    data = [_fmt(r) for r in rows]
     if not data:
         return
 

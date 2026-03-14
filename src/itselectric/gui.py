@@ -16,15 +16,15 @@ import yaml
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-DARK_BG      = "#0f1117"
-CARD_BG      = "#1a1d27"
-ACCENT       = "#4f8ef7"
+DARK_BG = "#0f1117"
+CARD_BG = "#1a1d27"
+ACCENT = "#4f8ef7"
 ACCENT_HOVER = "#3a7ae8"
-SUCCESS      = "#22c55e"
-ERROR        = "#ef4444"
+SUCCESS = "#22c55e"
+ERROR = "#ef4444"
 TEXT_PRIMARY = "#f0f2f8"
-TEXT_MUTED   = "#6b7280"
-BORDER       = "#2a2d3e"
+TEXT_MUTED = "#6b7280"
+BORDER = "#2a2d3e"
 
 
 # ── Stdout capture ─────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ class EmailSheetsApp(ctk.CTk):
         self.configure(fg_color=DARK_BG)
 
         self._yaml_path = ctk.StringVar(value="")
-        self._running   = False
+        self._running = False
 
         self._build_ui(self._tk_scale)
 
@@ -180,9 +180,7 @@ class EmailSheetsApp(ctk.CTk):
         ctk.CTkFrame(card, fg_color=BORDER, height=1).pack(fill="x", padx=24, pady=16)
 
         # Status badge
-        self._status_frame = ctk.CTkFrame(
-            card, fg_color="#12151f", corner_radius=10, height=px(52)
-        )
+        self._status_frame = ctk.CTkFrame(card, fg_color="#12151f", corner_radius=10, height=px(52))
         self._status_frame.pack(fill="x", padx=24)
         self._status_frame.pack_propagate(False)
 
@@ -258,6 +256,12 @@ class EmailSheetsApp(ctk.CTk):
 
             from itselectric.auth import get_credentials
             from itselectric.extract import extract_parsed
+            from itselectric.geo import (
+                DEFAULT_CHARGERS_CSV,
+                find_nearest_charger,
+                geocode_address,
+                load_chargers,
+            )
             from itselectric.gmail import (
                 body_to_plain,
                 fetch_messages,
@@ -265,7 +269,6 @@ class EmailSheetsApp(ctk.CTk):
                 get_body_from_payload,
             )
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
-            from itselectric.geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
 
             print(f"Starting pipeline with config: {yaml_path}")
 
@@ -273,19 +276,19 @@ class EmailSheetsApp(ctk.CTk):
             with open(yaml_path) as f:
                 config = yaml.safe_load(f) or {}
 
-            label          = config.get("label", "INBOX")
-            max_messages   = int(config.get("max_messages", 100))
-            body_length    = int(config.get("body_length", 200))
+            label = config.get("label", "INBOX")
+            max_messages = int(config.get("max_messages", 100))
+            body_length = int(config.get("body_length", 200))
             spreadsheet_id = config.get("spreadsheet_id", "").strip()
-            sheet_name     = config.get("sheet", "Sheet1")
-            content_limit  = int(config.get("content_limit", 5000))
-            chargers_path  = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
-            geocache_path  = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
+            sheet_name = config.get("sheet", "Sheet1")
+            content_limit = int(config.get("content_limit", 5000))
+            chargers_path = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
+            geocache_path = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
 
             # Resolve credentials relative to config file location
             print("Resolving credentials …")
-            config_dir       = str(Path(yaml_path).parent)
-            token_file       = os.path.join(config_dir, "token.json")
+            config_dir = str(Path(yaml_path).parent)
+            token_file = os.path.join(config_dir, "token.json")
             credentials_file = os.path.join(config_dir, "credentials.json")
 
             creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
@@ -293,7 +296,10 @@ class EmailSheetsApp(ctk.CTk):
                 chargers = load_chargers(chargers_path)
                 print(f"Loaded {len(chargers)} charger(s) from {chargers_path}")
             except FileNotFoundError:
-                print(f"Warning: chargers file not found at '{chargers_path}'; proximity lookup disabled.")
+                print(
+                    f"Warning: chargers file not found at '{chargers_path}';"
+                    " proximity lookup disabled."
+                )
                 chargers = []
             print("Credentials ready. Getting messages …")
             messages = fetch_messages(creds, label, max_messages)
@@ -324,19 +330,23 @@ class EmailSheetsApp(ctk.CTk):
                                 result = find_nearest_charger(lat, lon, chargers)
                                 if result:
                                     nearest_charger, distance_mi = result[0], str(result[1])
-                                    print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
+                                    print(
+                                        f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
+                                    )
                             else:
                                 print(f"  → Could not geocode: {parsed['address']!r}")
-                        sheet_rows.append((
-                            sent_date,
-                            parsed["name"],
-                            parsed["address"],
-                            parsed["email_1"],
-                            parsed["email_2"],
-                            content,
-                            nearest_charger,
-                            distance_mi,
-                        ))
+                        sheet_rows.append(
+                            (
+                                sent_date,
+                                parsed["name"],
+                                parsed["address"],
+                                parsed["email_1"],
+                                parsed["email_2"],
+                                content,
+                                nearest_charger,
+                                distance_mi,
+                            )
+                        )
                     else:
                         sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
@@ -399,10 +409,10 @@ class EmailSheetsApp(ctk.CTk):
 
     def _set_status(self, state: str, message: str):
         colors = {
-            "idle":    TEXT_MUTED,
+            "idle": TEXT_MUTED,
             "running": "#facc15",
             "success": SUCCESS,
-            "error":   ERROR,
+            "error": ERROR,
         }
         color = colors.get(state, TEXT_MUTED)
         self._status_dot.configure(text_color=color)

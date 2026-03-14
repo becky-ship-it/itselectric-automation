@@ -1,6 +1,5 @@
 """Tests for sheet hashing and deduplication logic."""
 
-
 from itselectric.sheets import row_hash, truncate
 
 LIMIT = 5000
