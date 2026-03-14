@@ -1,0 +1,11 @@
+it's electric
+
+<full name>
+
+The user has an address of <address> and has an email of <email1>
+
+Email address submitted in form <email2>
+
+Charging Cord:
+
+Charge Card:
