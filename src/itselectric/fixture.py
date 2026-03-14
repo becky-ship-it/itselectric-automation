@@ -27,12 +27,14 @@ def load_fixture_messages(directory) -> list[dict]:
         content = txt_file.read_text(encoding="utf-8")
         encoded = base64.urlsafe_b64encode(content.encode()).decode()
         mtime_ms = int(txt_file.stat().st_mtime * 1000)
-        messages.append({
-            "internalDate": str(mtime_ms),
-            "payload": {
-                "mimeType": "text/plain",
-                "body": {"data": encoded},
-                "headers": [],
-            },
-        })
+        messages.append(
+            {
+                "internalDate": str(mtime_ms),
+                "payload": {
+                    "mimeType": "text/plain",
+                    "body": {"data": encoded},
+                    "headers": [],
+                },
+            }
+        )
     return messages

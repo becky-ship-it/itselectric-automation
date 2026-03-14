@@ -1,9 +1,5 @@
 """Tests for fixture module: loading email .txt files as Gmail message dicts."""
 
-import base64
-import time
-from pathlib import Path
-
 import pytest
 
 from itselectric.fixture import load_fixture_messages

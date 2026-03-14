@@ -59,7 +59,7 @@ class TestFullPipeline:
         parsed_rows = []
 
         for msg in messages:
-            sent_date = format_sent_date(msg)
+            _ = format_sent_date(msg)
             mime, body_text = get_body_from_payload(msg.get("payload", {}))
             plain = body_to_plain(mime, body_text)
             parsed = extract_parsed(plain)
@@ -92,9 +92,7 @@ class TestFullPipeline:
 
     def test_nearest_charger_found_for_brooklyn_address(self, geocache_file, chargers):
         """A Brooklyn fixture address resolves to a real nearby charger."""
-        coords = geocode_address(
-            "19 Morris Ave, Brooklyn, NY 11205", cache_path=geocache_file
-        )
+        coords = geocode_address("19 Morris Ave, Brooklyn, NY 11205", cache_path=geocache_file)
         assert coords is not None
         name, dist = find_nearest_charger(*coords, chargers)
         assert name != ""
@@ -120,16 +118,18 @@ class TestFullPipeline:
                         nearest_charger, distance_mi = result[0], str(result[1])
 
             if parsed:
-                rows.append((
-                    sent_date,
-                    parsed["name"],
-                    parsed["address"],
-                    parsed["email_1"],
-                    parsed["email_2"],
-                    plain,
-                    nearest_charger,
-                    distance_mi,
-                ))
+                rows.append(
+                    (
+                        sent_date,
+                        parsed["name"],
+                        parsed["address"],
+                        parsed["email_1"],
+                        parsed["email_2"],
+                        plain,
+                        nearest_charger,
+                        distance_mi,
+                    )
+                )
             else:
                 rows.append((sent_date, "", "", "", "", plain, "", ""))
 

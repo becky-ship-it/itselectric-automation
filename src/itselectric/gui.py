@@ -293,8 +293,8 @@ class EmailSheetsApp(ctk.CTk):
                 creds = None
             else:
                 print("Resolving credentials …")
-                config_dir       = str(Path(yaml_path).parent)
-                token_file       = os.path.join(config_dir, "token.json")
+                config_dir = str(Path(yaml_path).parent)
+                token_file = os.path.join(config_dir, "token.json")
                 credentials_file = os.path.join(config_dir, "credentials.json")
                 creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
                 print("Credentials ready. Getting messages …")
