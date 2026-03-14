@@ -33,11 +33,11 @@ def test_load_chargers_prefers_override(tmp_path):
     csv_file = tmp_path / "chargers.csv"
     csv_file.write_text(textwrap.dedent("""\
         STREET,CITY,STATE,ZIPCODE,CHARGERID,NUM_OF_CHARGERS,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE
-        15 Washington St.,Brooklyn,NY,11205,S01,1,40.703503,-73.989561,-73.967773,40.700122
+        15 Washington St.,Brooklyn,NY,11205,S01,1,40.703503,-73.989561,40.700122,-73.967773
     """))
     chargers = load_chargers(csv_file)
-    assert chargers[0]["lat"] == pytest.approx(-73.967773)
-    assert chargers[0]["lon"] == pytest.approx(40.700122)
+    assert chargers[0]["lat"] == pytest.approx(40.700122)
+    assert chargers[0]["lon"] == pytest.approx(-73.967773)
 
 
 def test_load_chargers_missing_file():
@@ -104,7 +104,7 @@ def test_geocode_address_writes_cache(tmp_path):
 
     cache = json.loads(cache_file.read_text())
     assert "New York, NY" in cache
-    assert cache["New York, NY"] == [pytest.approx(40.7128), pytest.approx(-74.0060)]
+    assert cache["New York, NY"] == pytest.approx([40.7128, -74.0060])
 
 
 def test_geocode_address_reads_cache_no_api_call(tmp_path):
