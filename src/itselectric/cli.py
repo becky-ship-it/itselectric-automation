@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 
 from .auth import get_credentials
 from .extract import extract_parsed
+from .geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
 from .sheets import append_rows, get_existing_hashes, row_hash
 
@@ -20,6 +21,8 @@ _DEFAULTS = {
     "spreadsheet_id": "",
     "sheet": "Sheet1",
     "content_limit": 5000,
+    "chargers": str(DEFAULT_CHARGERS_CSV),
+    "geocache": "geocache.json",
 }
 
 
@@ -75,6 +78,18 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="N",
         help="Max characters of content per cell when writing to Sheets.",
     )
+    parser.add_argument(
+        "--chargers",
+        default=config.get("chargers", _DEFAULTS["chargers"]),
+        metavar="PATH",
+        help="Path to chargers CSV (columns: STREET,CITY,STATE,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE).",
+    )
+    parser.add_argument(
+        "--geocache",
+        default=config.get("geocache", _DEFAULTS["geocache"]),
+        metavar="PATH",
+        help="Path to JSON file for caching geocoded addresses.",
+    )
     return parser.parse_args()
 
 
@@ -82,6 +97,13 @@ def main() -> None:
     config = _load_config()
     args = parse_args(config)
     creds = get_credentials()
+
+    try:
+        chargers = load_chargers(args.chargers)
+        print(f"Loaded {len(chargers)} charger(s) from {args.chargers}")
+    except FileNotFoundError:
+        print(f"Warning: chargers file not found at '{args.chargers}'; proximity lookup disabled.")
+        chargers = []
 
     try:
         messages = fetch_messages(creds, args.label, args.max_messages)
@@ -107,6 +129,17 @@ def main() -> None:
             content = plain or ""
             parsed = extract_parsed(content)
             if parsed:
+                nearest_charger, distance_mi = "", ""
+                if chargers:
+                    coords = geocode_address(parsed["address"], cache_path=args.geocache)
+                    if coords:
+                        lat, lon = coords
+                        result = find_nearest_charger(lat, lon, chargers)
+                        if result:
+                            nearest_charger, distance_mi = result[0], str(result[1])
+                            print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
+                    else:
+                        print(f"  → Could not geocode: {parsed['address']!r}")
                 sheet_rows.append((
                     sent_date,
                     parsed["name"],
@@ -114,9 +147,11 @@ def main() -> None:
                     parsed["email_1"],
                     parsed["email_2"],
                     content,
+                    nearest_charger,
+                    distance_mi,
                 ))
             else:
-                sheet_rows.append((sent_date, "", "", "", "", content))
+                sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
     if args.spreadsheet_id and sheet_rows:
         try:
@@ -125,7 +160,7 @@ def main() -> None:
             )
 
             def _hash(r):
-                sent_date, name, address, email_1, email_2, content = r
+                sent_date, name, address, email_1, email_2, content, _charger, _dist = r
                 return row_hash(
                     [sent_date, name, address, email_1, email_2, content],
                     args.content_limit,
