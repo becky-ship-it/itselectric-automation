@@ -268,6 +268,7 @@ class EmailSheetsApp(ctk.CTk):
                 format_sent_date,
                 get_body_from_payload,
             )
+            from itselectric.fixture import load_fixture_messages
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
@@ -282,16 +283,22 @@ class EmailSheetsApp(ctk.CTk):
             spreadsheet_id = config.get("spreadsheet_id", "").strip()
             sheet_name = config.get("sheet", "Sheet1")
             content_limit = int(config.get("content_limit", 5000))
+            fixture_dir = config.get("fixture_dir", "").strip()
             chargers_path = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
             geocache_path = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
 
-            # Resolve credentials relative to config file location
-            print("Resolving credentials …")
-            config_dir = str(Path(yaml_path).parent)
-            token_file = os.path.join(config_dir, "token.json")
-            credentials_file = os.path.join(config_dir, "credentials.json")
-
-            creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
+            if fixture_dir:
+                print(f"Using fixture directory: {fixture_dir}")
+                messages = load_fixture_messages(fixture_dir)
+                creds = None
+            else:
+                print("Resolving credentials …")
+                config_dir       = str(Path(yaml_path).parent)
+                token_file       = os.path.join(config_dir, "token.json")
+                credentials_file = os.path.join(config_dir, "credentials.json")
+                creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
+                print("Credentials ready. Getting messages …")
+                messages = fetch_messages(creds, label, max_messages)
             try:
                 chargers = load_chargers(chargers_path)
                 print(f"Loaded {len(chargers)} charger(s) from {chargers_path}")
@@ -301,8 +308,6 @@ class EmailSheetsApp(ctk.CTk):
                     " proximity lookup disabled."
                 )
                 chargers = []
-            print("Credentials ready. Getting messages …")
-            messages = fetch_messages(creds, label, max_messages)
 
             print(f"Processing {len(messages)} message(s) …")
             sheet_rows = []
