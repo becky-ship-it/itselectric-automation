@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 
 from .auth import get_credentials
 from .extract import extract_parsed
+from .fixture import load_fixture_messages
 from .geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
 from .sheets import append_rows, get_existing_hashes, row_hash
@@ -23,6 +24,7 @@ _DEFAULTS = {
     "content_limit": 5000,
     "chargers": str(DEFAULT_CHARGERS_CSV),
     "geocache": "geocache.json",
+    "fixture_dir": "",
 }
 
 
@@ -92,14 +94,18 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="PATH",
         help="Path to JSON file for caching geocoded addresses.",
     )
+    parser.add_argument(
+        "--fixture-dir",
+        default=config.get("fixture_dir", _DEFAULTS["fixture_dir"]),
+        metavar="DIR",
+        help="Load emails from .txt files in this directory instead of Gmail (skips auth).",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     config = _load_config()
     args = parse_args(config)
-    creds = get_credentials()
-
     try:
         chargers = load_chargers(args.chargers)
         print(f"Loaded {len(chargers)} charger(s) from {args.chargers}")
@@ -107,11 +113,21 @@ def main() -> None:
         print(f"Warning: chargers file not found at '{args.chargers}'; proximity lookup disabled.")
         chargers = []
 
-    try:
-        messages = fetch_messages(creds, args.label, args.max_messages)
-    except HttpError as e:
-        print(f"Gmail API error: {e}")
-        return
+    if args.fixture_dir:
+        print(f"Using fixture directory: {args.fixture_dir}")
+        try:
+            messages = load_fixture_messages(args.fixture_dir)
+        except FileNotFoundError as e:
+            print(f"Fixture directory not found: {e}")
+            return
+        creds = None
+    else:
+        creds = get_credentials()
+        try:
+            messages = fetch_messages(creds, args.label, args.max_messages)
+        except HttpError as e:
+            print(f"Gmail API error: {e}")
+            return
 
     sheet_rows = []
     for msg in messages:
