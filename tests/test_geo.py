@@ -14,7 +14,6 @@ from itselectric.geo import (
     load_chargers,
 )
 
-
 # ── load_chargers ─────────────────────────────────────────────────────────────
 
 def test_load_chargers_uses_lat_long(tmp_path):
