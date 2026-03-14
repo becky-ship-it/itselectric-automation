@@ -265,6 +265,7 @@ class EmailSheetsApp(ctk.CTk):
                 get_body_from_payload,
             )
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
+            from itselectric.geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
 
             print(f"Starting pipeline with config: {yaml_path}")
 
@@ -278,6 +279,8 @@ class EmailSheetsApp(ctk.CTk):
             spreadsheet_id = config.get("spreadsheet_id", "").strip()
             sheet_name     = config.get("sheet", "Sheet1")
             content_limit  = int(config.get("content_limit", 5000))
+            chargers_path  = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
+            geocache_path  = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
 
             # Resolve credentials relative to config file location
             print("Resolving credentials …")
@@ -286,6 +289,12 @@ class EmailSheetsApp(ctk.CTk):
             credentials_file = os.path.join(config_dir, "credentials.json")
 
             creds = get_credentials(token_file=token_file, credentials_file=credentials_file)
+            try:
+                chargers = load_chargers(chargers_path)
+                print(f"Loaded {len(chargers)} charger(s) from {chargers_path}")
+            except FileNotFoundError:
+                print(f"Warning: chargers file not found at '{chargers_path}'; proximity lookup disabled.")
+                chargers = []
             print("Credentials ready. Getting messages …")
             messages = fetch_messages(creds, label, max_messages)
 
@@ -307,6 +316,17 @@ class EmailSheetsApp(ctk.CTk):
                     content = plain or ""
                     parsed = extract_parsed(content)
                     if parsed:
+                        nearest_charger, distance_mi = "", ""
+                        if chargers:
+                            coords = geocode_address(parsed["address"], cache_path=geocache_path)
+                            if coords:
+                                lat, lon = coords
+                                result = find_nearest_charger(lat, lon, chargers)
+                                if result:
+                                    nearest_charger, distance_mi = result[0], str(result[1])
+                                    print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
+                            else:
+                                print(f"  → Could not geocode: {parsed['address']!r}")
                         sheet_rows.append((
                             sent_date,
                             parsed["name"],
@@ -314,15 +334,17 @@ class EmailSheetsApp(ctk.CTk):
                             parsed["email_1"],
                             parsed["email_2"],
                             content,
+                            nearest_charger,
+                            distance_mi,
                         ))
                     else:
-                        sheet_rows.append((sent_date, "", "", "", "", content))
+                        sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
             if spreadsheet_id and sheet_rows:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
                 def _hash(r):
-                    d, n, a, e1, e2, c = r
+                    d, n, a, e1, e2, c, _charger, _dist = r
                     return row_hash([d, n, a, e1, e2, c], content_limit)
 
                 new_rows = [r for r in sheet_rows if _hash(r) not in existing]
