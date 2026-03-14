@@ -16,3 +16,7 @@ content_limit: 5000
 
 # Path to JSON file that caches geocoded addresses (avoids repeated API calls)
 geocache: geocache.json
+
+# Load emails from .txt files in this directory instead of Gmail (skips auth).
+# Useful for local dev and integration testing. Leave empty to use Gmail.
+# fixture_dir: tests/fixtures/emails
