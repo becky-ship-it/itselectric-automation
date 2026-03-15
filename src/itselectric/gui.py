@@ -290,7 +290,13 @@ class EmailSheetsApp(ctk.CTk):
             if fixture_dir:
                 print(f"Using fixture directory: {fixture_dir}")
                 messages = load_fixture_messages(fixture_dir)
-                creds = None
+                # Still need credentials when writing to a sheet, even in fixture mode.
+                creds = get_credentials(
+                    token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
+                    credentials_file=os.path.join(
+                        str(Path(yaml_path).parent), "credentials.json"
+                    ),
+                ) if spreadsheet_id else None
             else:
                 print("Resolving credentials …")
                 config_dir = str(Path(yaml_path).parent)

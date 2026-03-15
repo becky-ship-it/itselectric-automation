@@ -98,7 +98,8 @@ def parse_args(config: dict) -> argparse.Namespace:
         "--fixture-dir",
         default=config.get("fixture_dir", _DEFAULTS["fixture_dir"]),
         metavar="DIR",
-        help="Load emails from .txt files in this directory instead of Gmail (skips auth).",
+        help="Load emails from .txt files in this directory instead of Gmail. Auth is still"
+        " required when --spreadsheet-id is set.",
     )
     return parser.parse_args()
 
@@ -120,7 +121,8 @@ def main() -> None:
         except FileNotFoundError as e:
             print(f"Fixture directory not found: {e}")
             return
-        creds = None
+        # Still need credentials when writing to a sheet, even in fixture mode.
+        creds = get_credentials() if args.spreadsheet_id else None
     else:
         creds = get_credentials()
         try:
