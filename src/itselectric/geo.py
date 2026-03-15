@@ -13,8 +13,11 @@ from geopy.geocoders import Nominatim
 DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 
 # Matches apartment/unit designators that confuse geocoders.
-# Examples: "APT #5", "Apt. 3B", "Apartment 12", "Suite 100", "Unit 4B"
-_UNIT_RE = re.compile(r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*#?\s*\w+", re.IGNORECASE)
+# Consumes everything after the keyword up to the next comma, so multi-word
+# values like "APT #Stage 11", "APT#Unit 430", "APT # UNIT 6005" are fully stripped.
+_UNIT_RE = re.compile(
+    r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*#?\s*[^,]+", re.IGNORECASE
+)
 
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0")
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)

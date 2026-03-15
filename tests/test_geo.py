@@ -36,6 +36,23 @@ def test_strip_unit_no_unit_unchanged():
     assert _strip_unit("19 Morris Ave, Brooklyn, NY 11205") == "19 Morris Ave, Brooklyn, NY 11205"
 
 
+# Real-world multi-word unit values seen in the wild
+def test_strip_unit_apt_hash_word_number():
+    assert _strip_unit("123 Main St, APT #Stage 11, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
+def test_strip_unit_apt_hash_no_space():
+    assert _strip_unit("123 Main St, APT#Unit 430, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
+def test_strip_unit_apt_hash_space_word_number():
+    assert _strip_unit("123 Main St, APT # UNIT 6005, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
+def test_strip_unit_apt_hash_apt_number():
+    assert _strip_unit("123 Main St, APT #Apt 602, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
 def test_geocode_address_strips_apt_before_api_call(tmp_path):
     """APT number is removed before the geocoder is called."""
     mock_location = MagicMock()
