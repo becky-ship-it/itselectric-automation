@@ -2,6 +2,7 @@
 
 import csv
 import json
+from functools import cache
 from pathlib import Path
 
 from geopy.distance import geodesic
@@ -14,6 +15,7 @@ _nominatim = Nominatim(user_agent="itselectric-automation/1.0")
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)
 
 
+@cache
 def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
     """
     Load charger locations from a CSV file.
