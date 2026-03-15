@@ -7,10 +7,63 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from itselectric.geo import (
+    _strip_unit,
     find_nearest_charger,
     geocode_address,
     load_chargers,
 )
+
+# ── _strip_unit ───────────────────────────────────────────────────────────────
+
+
+def test_strip_unit_apt_hash():
+    assert _strip_unit("123 Main St, APT #5, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
+def test_strip_unit_apt_no_hash():
+    assert _strip_unit("123 Main St, APT 5B, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+
+
+def test_strip_unit_apartment_word():
+    assert _strip_unit("123 Main St, Apartment 3B, Boston, MA") == "123 Main St, Boston, MA"
+
+
+def test_strip_unit_suite():
+    assert _strip_unit("456 Park Ave, Suite 100, New York, NY") == "456 Park Ave, New York, NY"
+
+
+def test_strip_unit_no_unit_unchanged():
+    assert _strip_unit("19 Morris Ave, Brooklyn, NY 11205") == "19 Morris Ave, Brooklyn, NY 11205"
+
+
+def test_geocode_address_strips_apt_before_api_call(tmp_path):
+    """APT number is removed before the geocoder is called."""
+    mock_location = MagicMock()
+    mock_location.latitude = 40.70
+    mock_location.longitude = -73.97
+
+    cache_file = tmp_path / "geocache.json"
+    with patch("itselectric.geo._geocode_fn") as mock_fn:
+        mock_fn.return_value = mock_location
+        geocode_address("19 Morris Ave, APT #4A, Brooklyn, NY 11205", cache_path=cache_file)
+        # The geocoder must be called with the stripped address
+        mock_fn.assert_called_once_with("19 Morris Ave, Brooklyn, NY 11205")
+
+
+def test_geocode_address_apt_variants_share_cache_entry(tmp_path):
+    """Different unit numbers at the same address share one geocache entry."""
+    mock_location = MagicMock()
+    mock_location.latitude = 40.70
+    mock_location.longitude = -73.97
+
+    cache_file = tmp_path / "geocache.json"
+    with patch("itselectric.geo._geocode_fn") as mock_fn:
+        mock_fn.return_value = mock_location
+        geocode_address("19 Morris Ave, APT #1A, Brooklyn, NY 11205", cache_path=cache_file)
+        geocode_address("19 Morris Ave, APT #2B, Brooklyn, NY 11205", cache_path=cache_file)
+        # Second call should hit cache — geocoder called only once
+        assert mock_fn.call_count == 1
+
 
 # ── load_chargers ─────────────────────────────────────────────────────────────
 

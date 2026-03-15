@@ -2,6 +2,7 @@
 
 import csv
 import json
+import re
 from functools import cache
 from pathlib import Path
 
@@ -10,6 +11,10 @@ from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 
 DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
+
+# Matches apartment/unit designators that confuse geocoders.
+# Examples: "APT #5", "Apt. 3B", "Apartment 12", "Suite 100", "Unit 4B"
+_UNIT_RE = re.compile(r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*#?\s*\w+", re.IGNORECASE)
 
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0")
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)
@@ -78,6 +83,11 @@ def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[
     return nearest["name"], distance
 
 
+def _strip_unit(address: str) -> str:
+    """Remove apartment/unit designators from an address before geocoding."""
+    return _UNIT_RE.sub("", address).strip().strip(",").strip()
+
+
 def geocode_address(
     address: str | None,
     cache_path: str | Path | None = None,
@@ -100,6 +110,13 @@ def geocode_address(
         the geocoder cannot resolve it.
     """
     if not address or not address.strip():
+        return None
+
+    # Strip apt/unit numbers — they confuse geocoders and are not needed for
+    # locating the building. The normalized form is used as the cache key so
+    # different unit numbers at the same address share one cache entry.
+    address = _strip_unit(address)
+    if not address:
         return None
 
     # ── Read cache ────────────────────────────────────────────────────────────
