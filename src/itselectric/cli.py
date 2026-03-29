@@ -153,9 +153,22 @@ def main() -> None:
         else:
             print("No body found for message.")
 
+        content = plain or ""
+        parsed = extract_parsed(content)
+
+        if parsed and args.hubspot_access_token:
+            contact_id = upsert_contact(
+                access_token=args.hubspot_access_token,
+                name=parsed["name"],
+                email=parsed["email_1"],
+                address=parsed["address"],
+            )
+            if contact_id:
+                print(f"  → HubSpot contact: {contact_id}")
+            else:
+                print("  → HubSpot upsert failed (see error above).")
+
         if args.spreadsheet_id:
-            content = plain or ""
-            parsed = extract_parsed(content)
             if parsed:
                 nearest_charger, distance_mi = "", ""
                 if chargers:
@@ -168,17 +181,6 @@ def main() -> None:
                             print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
                     else:
                         print(f"  → Could not geocode: {parsed['address']!r}")
-                if args.hubspot_access_token:
-                    contact_id = upsert_contact(
-                        access_token=args.hubspot_access_token,
-                        name=parsed["name"],
-                        email=parsed["email_1"],
-                        address=parsed["address"],
-                    )
-                    if contact_id:
-                        print(f"  → HubSpot contact: {contact_id}")
-                    else:
-                        print("  → HubSpot upsert failed (see error above).")
                 sheet_rows.append(
                     (
                         sent_date,
