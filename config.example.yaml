@@ -20,3 +20,7 @@ geocache: geocache.json
 # Load emails from .txt files in this directory instead of Gmail (skips auth).
 # Useful for local dev and integration testing. Leave empty to use Gmail.
 # fixture_dir: tests/fixtures/emails
+
+# HubSpot Private App access token. When set, creates/updates contacts in HubSpot CRM.
+# Get one from: HubSpot Settings → Integrations → Private Apps
+# hubspot_access_token: ""

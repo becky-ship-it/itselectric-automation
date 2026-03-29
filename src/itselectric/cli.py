@@ -25,6 +25,7 @@ _DEFAULTS = {
     "chargers": str(DEFAULT_CHARGERS_CSV),
     "geocache": "geocache.json",
     "fixture_dir": "",
+    "hubspot_access_token": "",
 }
 
 
@@ -100,6 +101,12 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="DIR",
         help="Load emails from .txt files in this directory instead of Gmail. Auth is still"
         " required when --spreadsheet-id is set.",
+    )
+    parser.add_argument(
+        "--hubspot-access-token",
+        default=config.get("hubspot_access_token", _DEFAULTS["hubspot_access_token"]),
+        metavar="TOKEN",
+        help="HubSpot Private App access token. When set, creates/updates contacts in HubSpot.",
     )
     return parser.parse_args()
 
