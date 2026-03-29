@@ -11,6 +11,7 @@ from .extract import extract_parsed
 from .fixture import load_fixture_messages
 from .geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
+from .hubspot import upsert_contact
 from .sheets import append_rows, get_existing_hashes, row_hash
 
 CONFIG_FILE = "config.yaml"
@@ -167,6 +168,17 @@ def main() -> None:
                             print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
                     else:
                         print(f"  → Could not geocode: {parsed['address']!r}")
+                if args.hubspot_access_token:
+                    contact_id = upsert_contact(
+                        access_token=args.hubspot_access_token,
+                        name=parsed["name"],
+                        email=parsed["email_1"],
+                        address=parsed["address"],
+                    )
+                    if contact_id:
+                        print(f"  → HubSpot contact: {contact_id}")
+                    else:
+                        print("  → HubSpot upsert failed (see error above).")
                 sheet_rows.append(
                     (
                         sent_date,

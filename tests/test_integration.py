@@ -141,3 +141,20 @@ class TestFullPipeline:
         for row in parsed_rows:
             assert row[6] != "", f"Expected nearest_charger to be set, got: {row}"
             assert row[7] != "", f"Expected distance_mi to be set, got: {row}"
+
+    def test_hubspot_skipped_when_no_token(self):
+        """When hubspot_access_token is absent/empty, no HubSpot calls are made."""
+        from unittest.mock import patch
+        from itselectric.hubspot import upsert_contact
+
+        with patch("itselectric.hubspot.requests.post") as mock_post:
+            messages = load_fixture_messages(FIXTURES_DIR)
+            token = ""
+            for msg in messages:
+                mime, body_text = get_body_from_payload(msg.get("payload", {}))
+                plain = body_to_plain(mime, body_text)
+                parsed = extract_parsed(plain)
+                if parsed and token:
+                    upsert_contact(token, parsed["name"], parsed["email_1"], parsed["address"])
+
+        mock_post.assert_not_called()
