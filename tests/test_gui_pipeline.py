@@ -155,6 +155,7 @@ class TestRunPipelineCompletion:
                 "itselectric.gmail": MagicMock(),
                 "itselectric.extract": MagicMock(),
                 "itselectric.sheets": MagicMock(),
+                "itselectric.hubspot": MagicMock(),
             },
         ):
             EmailSheetsApp._run_pipeline(self_mock, _make_config(tmp_path))
@@ -196,6 +197,7 @@ class TestRunPipelineCompletion:
                 "itselectric.gmail": MagicMock(),
                 "itselectric.extract": MagicMock(),
                 "itselectric.sheets": MagicMock(),
+                "itselectric.hubspot": MagicMock(),
             },
         ):
             EmailSheetsApp._run_pipeline(self_mock, _make_config(tmp_path))
