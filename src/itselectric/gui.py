@@ -257,6 +257,7 @@ class EmailSheetsApp(ctk.CTk):
             from itselectric.auth import get_credentials
             from itselectric.extract import extract_parsed
             from itselectric.fixture import load_fixture_messages
+            from itselectric.hubspot import upsert_contact
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
                 find_nearest_charger,
@@ -281,6 +282,7 @@ class EmailSheetsApp(ctk.CTk):
             max_messages = int(config.get("max_messages", 100))
             body_length = int(config.get("body_length", 200))
             spreadsheet_id = config.get("spreadsheet_id", "").strip()
+            hubspot_access_token = config.get("hubspot_access_token", "")
             sheet_name = config.get("sheet", "Sheet1")
             content_limit = int(config.get("content_limit", 5000))
             fixture_dir = config.get("fixture_dir", "").strip()
@@ -329,9 +331,22 @@ class EmailSheetsApp(ctk.CTk):
                 else:
                     print("No body found for message.")
 
+                content = plain or ""
+                parsed = extract_parsed(content)
+
+                if parsed and hubspot_access_token:
+                    contact_id = upsert_contact(
+                        access_token=hubspot_access_token,
+                        name=parsed["name"],
+                        email=parsed["email_1"],
+                        address=parsed["address"],
+                    )
+                    if contact_id:
+                        print(f"  → HubSpot contact: {contact_id}")
+                    else:
+                        print("  → HubSpot upsert failed (see error above).")
+
                 if spreadsheet_id:
-                    content = plain or ""
-                    parsed = extract_parsed(content)
                     if parsed:
                         nearest_charger, distance_mi = "", ""
                         if chargers:
