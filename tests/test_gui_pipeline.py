@@ -75,6 +75,7 @@ def _run(self_mock, yaml_path, *, messages=None, existing=None):
             "itselectric.gmail": mock_gmail,
             "itselectric.extract": mock_extract,
             "itselectric.sheets": mock_sheets,
+            "itselectric.hubspot": MagicMock(),
         },
     ):
         EmailSheetsApp._run_pipeline(self_mock, yaml_path)
