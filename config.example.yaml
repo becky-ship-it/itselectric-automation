@@ -21,6 +21,7 @@ geocache: geocache.json
 # Useful for local dev and integration testing. Leave empty to use Gmail.
 # fixture_dir: tests/fixtures/emails
 
-# HubSpot Private App access token. When set, creates/updates contacts in HubSpot CRM.
-# Get one from: HubSpot Settings → Integrations → Private Apps
+# HubSpot access token. When set, creates/updates contacts in HubSpot CRM.
+# Get one from: HubSpot Development → Legacy Apps → your app → Auth → Access token
+# Runs independently of spreadsheet_id — you can set one, both, or neither.
 # hubspot_access_token: ""
