@@ -26,7 +26,7 @@ class TestSheetColumns:
         assert "HubSpot Contact" in COLUMNS
 
     def test_has_email_template_column(self):
-        assert "Email Template" in COLUMNS
+        assert "Email Sent" in COLUMNS
 
     def test_column_count_is_ten(self):
         assert len(COLUMNS) == 10

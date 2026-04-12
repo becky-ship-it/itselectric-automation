@@ -16,7 +16,7 @@ COLUMNS = [
     "Nearest Charger",
     "Distance (mi)",
     "HubSpot Contact",   # "created" | "failed" | "" (not attempted)
-    "Email Template",    # template name if sent, "failed", or "" (not attempted)
+    "Email Sent",    # template name if sent, "failed", or "" (not attempted)
 ]
 
 
