@@ -25,3 +25,9 @@ geocache: geocache.json
 # Get one from: HubSpot Development → Legacy Apps → your app → Auth → Access token
 # Runs independently of spreadsheet_id — you can set one, both, or neither.
 # hubspot_access_token: ""
+
+# Path to YAML file defining the email routing decision tree.
+# When set (along with hubspot_access_token), the pipeline evaluates each driver
+# against the tree and sends the matching HubSpot transactional email template.
+# See decision_tree.example.yaml for the full format.
+# decision_tree_file: decision_tree.yaml
