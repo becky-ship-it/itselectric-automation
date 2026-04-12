@@ -3,8 +3,8 @@
 import argparse
 import os
 
-import yaml
-from googleapiclient.errors import HttpError
+import yaml  # type: ignore
+from googleapiclient.errors import HttpError  # type: ignore
 
 from .auth import get_credentials
 from .extract import extract_parsed
@@ -198,7 +198,10 @@ def main() -> None:
             else:
                 sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
-    if args.spreadsheet_id and creds and sheet_rows:
+    if args.spreadsheet_id and sheet_rows:
+        if not creds:
+            print("Error: credentials required to write to Sheets.")
+            return
         try:
             existing = get_existing_hashes(
                 creds, args.spreadsheet_id, args.sheet, args.content_limit

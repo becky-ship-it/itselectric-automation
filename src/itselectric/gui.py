@@ -9,8 +9,8 @@ import threading
 from pathlib import Path
 from tkinter import filedialog
 
-import customtkinter as ctk
-import yaml
+import customtkinter as ctk  # type: ignore
+import yaml  # type: ignore
 
 # ── Theme ──────────────────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
@@ -252,12 +252,11 @@ class EmailSheetsApp(ctk.CTk):
         success, message = False, "Unknown error"
         try:
             # Import here so PyInstaller can tree-shake correctly.
-            from googleapiclient.errors import HttpError
+            from googleapiclient.errors import HttpError  # type: ignore
 
             from itselectric.auth import get_credentials
             from itselectric.extract import extract_parsed
             from itselectric.fixture import load_fixture_messages
-            from itselectric.hubspot import upsert_contact
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
                 find_nearest_charger,
@@ -270,6 +269,7 @@ class EmailSheetsApp(ctk.CTk):
                 format_sent_date,
                 get_body_from_payload,
             )
+            from itselectric.hubspot import upsert_contact
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
@@ -378,7 +378,7 @@ class EmailSheetsApp(ctk.CTk):
                     else:
                         sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
-            if spreadsheet_id and creds and sheet_rows:
+            if spreadsheet_id and sheet_rows and creds:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
                 def _hash(r):

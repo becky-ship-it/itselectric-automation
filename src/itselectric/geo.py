@@ -6,9 +6,9 @@ import re
 from functools import cache
 from pathlib import Path
 
-from geopy.distance import geodesic
-from geopy.extra.rate_limiter import RateLimiter
-from geopy.geocoders import Nominatim
+from geopy.distance import geodesic  # type: ignore
+from geopy.extra.rate_limiter import RateLimiter  # type: ignore
+from geopy.geocoders import Nominatim  # type: ignore
 
 DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 
@@ -119,6 +119,10 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
                         f"{row['STREET'].strip()}, {row['CITY'].strip()}, {row['STATE'].strip()}"
                     ),
                     "city": row["CITY"].strip().title(),
+                    # Big assumption: state is always a 2-letter abbreviation in the CSV.
+                    # If not, we could apply the same extraction logic as in 
+                    # extract_state_from_address(), but that would be more complex and error-prone,
+                    # so we just enforce the format in the data.
                     "state": row["STATE"].strip().upper(),
                     "lat": float(lat_raw),
                     "lon": float(lon_raw),
