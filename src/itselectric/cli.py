@@ -285,7 +285,7 @@ def main() -> None:
                 creds, args.spreadsheet_id, args.sheet, args.content_limit
             )
 
-            new_rows = [r for r in sheet_rows if row_hash(r, args.content_limit) not in existing]
+            new_rows = [r for r in sheet_rows if row_hash(list(r), args.content_limit) not in existing]
             skipped = len(sheet_rows) - len(new_rows)
             if skipped:
                 print(f"Skipping {skipped} row(s) already on sheet.")

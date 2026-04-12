@@ -75,7 +75,7 @@ def send_email(access_token: str, to_email: str, email_id: int) -> bool:
     """
     try:
         resp = requests.post(
-            f"{_BASE}/marketing/v3/transactional/single-email/send",
+            f"{_BASE}/marketing/transactional/2026-03/single-email/send",
             headers=_headers(access_token),
             json={
                 "emailId": email_id,

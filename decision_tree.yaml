@@ -25,16 +25,16 @@
 # EXAMPLE TREE
 # ------------
 # Scenario outcomes:
-#   Utah driver, 150 mi from Denver charger      → Waitlist (210856999951)
-#   LA driver, 15 mi from LA charger             → Get California Car Info (210857379649)
-#   Dallas TX driver, 99 mi from Waco charger    → Get General Car Info (210856999970)
+#   Utah driver, 150 mi from Denver charger      → Waitlist (22222)
+#   LA driver, 15 mi from LA charger             → Get California Car Info (51274065)
+#   Dallas TX driver, 99 mi from Waco charger    → Get General Car Info (11111)
 
 condition:
   field: distance_miles
   op: lt
   value: 0.5
 then:
-  email_id: 210856999970   # Get General Car Info — driver is already right next to a charger
+  email_id: 11111   # Get General Car Info — driver is already right next to a charger
 else:
   condition:
     field: distance_miles
@@ -53,10 +53,10 @@ else:
           - Los Angeles
           - San Francisco
       then:
-        email_id: 210857379649   # Get California Car Info
+        email_id: 51274065   # Get California Car Info
       else:
-        email_id: 210856999951   # Waitlist — CA driver but not near an LA/SF charger
+        email_id: 22222   # Waitlist — CA driver but not near an LA/SF charger
     else:
-      email_id: 210856999970     # Get General Car Info — within range but outside CA
+      email_id: 11111     # Get General Car Info — within range but outside CA
   else:
-    email_id: 210856999951       # Waitlist — more than 100 miles from nearest charger
+    email_id: 22222       # Waitlist — more than 100 miles from nearest charger

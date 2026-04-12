@@ -4,9 +4,9 @@ import json
 import textwrap
 from unittest.mock import MagicMock, patch
 
-import pytest
+import pytest  # type: ignore
 
-from itselectric.geo import (
+from itselectric.geo import (  # type: ignore
     _strip_unit,
     extract_state_from_address,
     find_nearest_charger,
@@ -18,11 +18,15 @@ from itselectric.geo import (
 
 
 def test_strip_unit_apt_hash():
-    assert _strip_unit("123 Main St, APT #5, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT #5, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_strip_unit_apt_no_hash():
-    assert _strip_unit("123 Main St, APT 5B, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT 5B, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_strip_unit_apartment_word():
@@ -39,19 +43,31 @@ def test_strip_unit_no_unit_unchanged():
 
 # Real-world multi-word unit values seen in the wild
 def test_strip_unit_apt_hash_word_number():
-    assert _strip_unit("123 Main St, APT #Stage 11, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT #Stage 11, Brooklyn, NY 11205")
+        == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_strip_unit_apt_hash_no_space():
-    assert _strip_unit("123 Main St, APT#Unit 430, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT#Unit 430, Brooklyn, NY 11205")
+        == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_strip_unit_apt_hash_space_word_number():
-    assert _strip_unit("123 Main St, APT # UNIT 6005, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT # UNIT 6005, Brooklyn, NY 11205")
+        == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_strip_unit_apt_hash_apt_number():
-    assert _strip_unit("123 Main St, APT #Apt 602, Brooklyn, NY 11205") == "123 Main St, Brooklyn, NY 11205"
+    assert (
+        _strip_unit("123 Main St, APT #Apt 602, Brooklyn, NY 11205")
+        == "123 Main St, Brooklyn, NY 11205"
+    )
 
 
 def test_geocode_address_strips_apt_before_api_call(tmp_path):

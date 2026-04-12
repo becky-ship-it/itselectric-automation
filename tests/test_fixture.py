@@ -1,9 +1,9 @@
 """Tests for fixture module: loading email .txt files as Gmail message dicts."""
 
-import pytest
+import pytest  # type: ignore
 
-from itselectric.fixture import load_fixture_messages
-from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload
+from itselectric.fixture import load_fixture_messages  # type: ignore
+from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload  # type: ignore
 
 
 def test_load_fixture_messages_returns_one_per_file(tmp_path):

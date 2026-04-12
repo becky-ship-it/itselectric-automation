@@ -11,7 +11,7 @@ Key behaviors under test (from the recent bug fix):
 import sys
 from unittest.mock import MagicMock, patch
 
-import yaml
+import yaml  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Stub customtkinter so itselectric.gui can be imported without a display.
@@ -26,7 +26,7 @@ if "customtkinter" not in sys.modules:
     _ctk_stub.CTk = _MockCTk
     sys.modules["customtkinter"] = _ctk_stub
 
-from itselectric.gui import EmailSheetsApp, _LogWriter  # noqa: E402 — must follow stub
+from itselectric.gui import EmailSheetsApp, _LogWriter
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 

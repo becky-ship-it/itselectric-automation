@@ -2,7 +2,12 @@
 
 import base64
 
-from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload, html_to_plain
+from itselectric.gmail import (  # type: ignore
+    body_to_plain,
+    format_sent_date,
+    get_body_from_payload,
+    html_to_plain,
+)
 
 
 def _enc(text: str) -> str:

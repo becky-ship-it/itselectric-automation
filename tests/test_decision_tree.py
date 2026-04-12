@@ -1,8 +1,8 @@
 """Tests for the decision tree evaluator."""
 
-import pytest
+import pytest  # type: ignore
 
-from itselectric.decision_tree import evaluate
+from itselectric.decision_tree import evaluate  # type: ignore
 
 
 class TestEvaluateLeaf:
@@ -99,17 +99,32 @@ class TestEvaluateNested:
 
     def test_utah_driver_150_miles_denver(self):
         """Utah driver 150 mi from Denver → Waitlist."""
-        ctx = {"driver_state": "UT", "charger_state": "CO", "charger_city": "Denver", "distance_miles": 150}
+        ctx = {
+            "driver_state": "UT",
+            "charger_state": "CO",
+            "charger_city": "Denver",
+            "distance_miles": 150,
+        }
         assert evaluate(self._TREE, ctx) == 22222
 
     def test_la_driver_15_miles_la_charger(self):
         """LA driver 15 mi from LA charger → Get California Car Info."""
-        ctx = {"driver_state": "CA", "charger_state": "CA", "charger_city": "Los Angeles", "distance_miles": 15}
+        ctx = {
+            "driver_state": "CA",
+            "charger_state": "CA",
+            "charger_city": "Los Angeles",
+            "distance_miles": 15,
+        }
         assert evaluate(self._TREE, ctx) == 67890
 
     def test_dallas_driver_99_miles_waco(self):
         """Dallas TX driver 99 mi from Waco → Get General Car Info."""
-        ctx = {"driver_state": "TX", "charger_state": "TX", "charger_city": "Waco", "distance_miles": 99}
+        ctx = {
+            "driver_state": "TX",
+            "charger_state": "TX",
+            "charger_city": "Waco",
+            "distance_miles": 99,
+        }
         assert evaluate(self._TREE, ctx) == 11111
 
 

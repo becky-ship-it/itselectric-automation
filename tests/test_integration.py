@@ -17,7 +17,7 @@ What this tests end-to-end:
 import json
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore
 
 from itselectric.extract import extract_parsed
 from itselectric.fixture import load_fixture_messages
@@ -149,6 +149,7 @@ class TestFullPipeline:
     def test_hubspot_skipped_when_no_token(self):
         """When hubspot_access_token is absent/empty, no HubSpot calls are made."""
         from unittest.mock import patch
+
         from itselectric.hubspot import upsert_contact
 
         with patch("itselectric.hubspot.requests.post") as mock_post:

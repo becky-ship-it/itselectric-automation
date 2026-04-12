@@ -1,6 +1,6 @@
 """Tests for email extraction logic."""
 
-from itselectric.extract import extract_parsed
+from itselectric.extract import extract_parsed  # type: ignore
 
 SAMPLE_BODY = (
     "it's electric John Smith "

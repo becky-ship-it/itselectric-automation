@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from itselectric.hubspot import send_email, upsert_contact
 
 
@@ -80,7 +78,7 @@ class TestUpsertContact:
 
     def test_returns_none_on_request_error(self):
         """If the API call raises an exception, return None (don't crash the pipeline)."""
-        import requests as req
+        import requests as req  # type: ignore
 
         with patch("itselectric.hubspot.requests.post") as mock_post:
             mock_post.side_effect = req.RequestException("network error")
@@ -108,7 +106,7 @@ class TestSendEmail:
             send_email(access_token="tok", to_email="driver@example.com", email_id=12345)
 
         url = mock_post.call_args.args[0]
-        assert "/marketing/v3/transactional/single-email/send" in url
+        assert "/marketing/transactional/2026-03/single-email/send" in url
 
     def test_sends_correct_body(self):
         """Request body contains emailId and message.to."""

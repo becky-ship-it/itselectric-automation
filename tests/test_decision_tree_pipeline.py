@@ -1,8 +1,6 @@
 """Tests for decision tree config loading and context building in the pipeline."""
 
-import pytest
-
-from itselectric.cli import _build_tree_context, _load_decision_tree
+from itselectric.cli import _build_tree_context, _load_decision_tree  # type: ignore
 
 
 class TestLoadDecisionTree:
@@ -72,8 +70,13 @@ class TestBuildTreeContext:
         assert ctx["driver_state"] is None
 
     def test_charger_city_and_state_from_dict(self):
-        charger = {"name": "5 Oak St, Los Angeles, CA", "city": "Los Angeles", "state": "CA",
-                   "lat": 34.05, "lon": -118.24}
+        charger = {
+            "name": "5 Oak St, Los Angeles, CA",
+            "city": "Los Angeles",
+            "state": "CA",
+            "lat": 34.05,
+            "lon": -118.24,
+        }
         ctx = _build_tree_context(
             address="1 Some St, Pasadena, CA 91101",
             charger_dict=charger,
