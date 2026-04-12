@@ -1,12 +1,15 @@
-"""Gmail API helpers: fetch messages, decode bodies."""
+"""Gmail API helpers: fetch messages, decode bodies, send emails."""
 
 import base64
+import os
 import re
 from datetime import datetime, timezone
+from email.mime.text import MIMEText
 
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build  # type: ignore
+from googleapiclient.errors import HttpError  # type: ignore
 
 
 def decode_base64(data: str) -> str:
@@ -104,3 +107,44 @@ def fetch_messages(creds: Credentials, label: str, max_messages: int) -> list[di
     return [
         service.users().messages().get(userId="me", id=msg_id).execute() for msg_id in message_ids
     ]
+
+
+def load_template(template_name: str, template_dir: str) -> tuple[str, str]:
+    """
+    Load an email template by name from template_dir.
+
+    File format:
+        Subject line
+        <blank line>
+        Body text (may span multiple lines).
+        Supports {name} and {address} substitution via str.format_map().
+
+    Returns (subject, body). Raises FileNotFoundError if the file doesn't exist.
+    """
+    path = os.path.join(template_dir, f"{template_name}.txt")
+    with open(path) as f:
+        content = f.read()
+    parts = content.split("\n\n", 1)
+    subject = parts[0].strip()
+    body = parts[1].strip() if len(parts) > 1 else ""
+    return subject, body
+
+
+def send_email(creds: Credentials, to_email: str, subject: str, body: str) -> bool:
+    """
+    Send a plain-text email via the authenticated Gmail account.
+
+    Returns True on success, False on error.
+    """
+    message = MIMEText(body)
+    message["to"] = to_email
+    message["subject"] = subject
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    service = build("gmail", "v1", credentials=creds)
+    try:
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        return True
+    except HttpError as e:
+        print(f"Gmail send error: {e}")
+        return False

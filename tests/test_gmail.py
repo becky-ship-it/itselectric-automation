@@ -1,12 +1,18 @@
-"""Tests for gmail module: body decoding, HTML stripping, date formatting."""
+"""Tests for gmail module: body decoding, HTML stripping, date formatting, send."""
 
 import base64
+import email as email_lib
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from itselectric.gmail import (  # type: ignore
     body_to_plain,
     format_sent_date,
     get_body_from_payload,
     html_to_plain,
+    load_template,
+    send_email,
 )
 
 
@@ -155,3 +161,91 @@ class TestFormatSentDate:
     def test_missing_date_header_returns_empty_string(self):
         msg = {"payload": {"headers": [{"name": "Subject", "value": "hello"}]}}
         assert format_sent_date(msg) == ""
+
+
+# ── load_template ──────────────────────────────────────────────────────────────
+
+
+class TestLoadTemplate:
+    def test_returns_subject_and_body(self, tmp_path):
+        (tmp_path / "welcome.txt").write_text(
+            "Welcome to It's Electric\n\nHi {name}, thanks for signing up!"
+        )
+        subject, body = load_template("welcome", str(tmp_path))
+        assert subject == "Welcome to It's Electric"
+        assert body == "Hi {name}, thanks for signing up!"
+
+    def test_raises_on_missing_template(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            load_template("nonexistent", str(tmp_path))
+
+    def test_subject_is_first_line(self, tmp_path):
+        (tmp_path / "t.txt").write_text("My Subject\n\nMy body")
+        subject, _ = load_template("t", str(tmp_path))
+        assert subject == "My Subject"
+
+    def test_body_excludes_subject_line(self, tmp_path):
+        (tmp_path / "t.txt").write_text("Subject\n\nLine 1\nLine 2")
+        _, body = load_template("t", str(tmp_path))
+        assert body == "Line 1\nLine 2"
+
+
+# ── send_email ─────────────────────────────────────────────────────────────────
+
+
+class TestSendEmail:
+    def _mock_service(self):
+        svc = MagicMock()
+        svc.users().messages().send().execute.return_value = {"id": "msg123"}
+        return svc
+
+    def test_returns_true_on_success(self):
+        creds = MagicMock()
+        with patch("itselectric.gmail.build", return_value=self._mock_service()):
+            assert send_email(creds, "to@example.com", "Subject", "Body") is True
+
+    def test_returns_false_on_http_error(self):
+        from googleapiclient.errors import HttpError  # type: ignore
+        creds = MagicMock()
+        svc = MagicMock()
+        svc.users().messages().send().execute.side_effect = HttpError(
+            MagicMock(status=500), b"error"
+        )
+        with patch("itselectric.gmail.build", return_value=svc):
+            assert send_email(creds, "to@example.com", "Subject", "Body") is False
+
+    def test_sends_to_correct_address(self):
+        creds = MagicMock()
+        captured = {}
+        svc = self._mock_service()
+
+        original_send = svc.users().messages().send
+        def capture(**kwargs):
+            captured.update(kwargs)
+            return original_send()
+        svc.users().messages().send = capture
+
+        with patch("itselectric.gmail.build", return_value=svc):
+            send_email(creds, "driver@example.com", "Hello", "Body text")
+
+        raw = base64.urlsafe_b64decode(captured["body"]["raw"])
+        msg = email_lib.message_from_bytes(raw)
+        assert msg["to"] == "driver@example.com"
+
+    def test_subject_in_message(self):
+        creds = MagicMock()
+        captured = {}
+        svc = self._mock_service()
+
+        original_send = svc.users().messages().send
+        def capture(**kwargs):
+            captured.update(kwargs)
+            return original_send()
+        svc.users().messages().send = capture
+
+        with patch("itselectric.gmail.build", return_value=svc):
+            send_email(creds, "x@example.com", "My Subject", "Body")
+
+        raw = base64.urlsafe_b64decode(captured["body"]["raw"])
+        msg = email_lib.message_from_bytes(raw)
+        assert msg["subject"] == "My Subject"
