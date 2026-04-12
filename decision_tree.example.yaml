@@ -1,13 +1,13 @@
 # Email routing decision tree for itselectric-automation.
-# Copy this file to decision_tree.yaml and replace the email_id values with
-# real HubSpot transactional email template IDs.
+# Copy this file to decision_tree.yaml and adjust template names to match
+# the .txt files in your template_dir.
 #
 # HOW IT WORKS
 # ------------
 # Each node is either a leaf or a branch.
 #
-# Leaf:   email_id: 12345        # sends this HubSpot template
-#         email_id: null         # sends nothing (opt out of routing)
+# Leaf:   template: general_car_info   # sends email_templates/general_car_info.txt
+#         template: null               # sends nothing (opt out of routing)
 #
 # Branch: condition:
 #           field: <field>       # one of: distance_miles, driver_state,
@@ -25,16 +25,16 @@
 # EXAMPLE TREE
 # ------------
 # Scenario outcomes:
-#   Utah driver, 150 mi from Denver charger      → Waitlist (210856999951)
-#   LA driver, 15 mi from LA charger             → Get California Car Info (210857379649)
-#   Dallas TX driver, 99 mi from Waco charger    → Get General Car Info (210856999970)
+#   Utah driver, 150 mi from Denver charger      → waitlist
+#   LA driver, 15 mi from LA charger             → california_car_info
+#   Dallas TX driver, 99 mi from Waco charger    → general_car_info
 
 condition:
   field: distance_miles
   op: lt
   value: 0.5
 then:
-  email_id: 210856999970   # Get General Car Info — driver is already right next to a charger
+  template: general_car_info   # driver is already right next to a charger
 else:
   condition:
     field: distance_miles
@@ -53,10 +53,10 @@ else:
           - Los Angeles
           - San Francisco
       then:
-        email_id: 210857379649   # Get California Car Info
+        template: california_car_info
       else:
-        email_id: 210856999951   # Waitlist — CA driver but not near an LA/SF charger
+        template: waitlist       # CA driver but not near an LA/SF charger
     else:
-      email_id: 210856999970     # Get General Car Info — within range but outside CA
+      template: general_car_info # within range but outside CA
   else:
-    email_id: 210856999951       # Waitlist — more than 100 miles from nearest charger
+    template: waitlist           # more than 100 miles from nearest charger

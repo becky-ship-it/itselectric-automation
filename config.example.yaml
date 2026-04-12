@@ -27,7 +27,11 @@ geocache: geocache.json
 # hubspot_access_token: ""
 
 # Path to YAML file defining the email routing decision tree.
-# When set (along with hubspot_access_token), the pipeline evaluates each driver
-# against the tree and sends the matching HubSpot transactional email template.
 # See decision_tree.example.yaml for the full format.
 # decision_tree_file: decision_tree.yaml
+
+# Directory containing email template .txt files.
+# Each file: first line = subject, blank line, then body.
+# Supports {name} and {address} substitution in the body.
+# See email_templates/ for examples.
+# template_dir: email_templates
