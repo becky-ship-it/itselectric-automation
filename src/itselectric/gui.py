@@ -421,7 +421,7 @@ class EmailSheetsApp(ctk.CTk):
                             template_name = None
                     if template_name is not None:
                         sent = send_email(creds, parsed["email_1"], subject, body)
-                        email_status = "sent" if sent else "failed"
+                        email_status = template_name if sent else "failed"
                         print(
                             f"  → Email '{template_name}' "
                             f"{'sent' if sent else 'FAILED'} → {parsed['email_1']}"
