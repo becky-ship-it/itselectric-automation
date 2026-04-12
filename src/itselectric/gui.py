@@ -257,8 +257,10 @@ class EmailSheetsApp(ctk.CTk):
             from itselectric.auth import get_credentials
             from itselectric.extract import extract_parsed
             from itselectric.fixture import load_fixture_messages
+            from itselectric.decision_tree import evaluate as evaluate_tree
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
+                extract_state_from_address,
                 find_nearest_charger,
                 geocode_address,
                 load_chargers,
@@ -269,7 +271,7 @@ class EmailSheetsApp(ctk.CTk):
                 format_sent_date,
                 get_body_from_payload,
             )
-            from itselectric.hubspot import upsert_contact
+            from itselectric.hubspot import send_email, upsert_contact
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
@@ -288,6 +290,20 @@ class EmailSheetsApp(ctk.CTk):
             fixture_dir = config.get("fixture_dir", "").strip()
             chargers_path = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
             geocache_path = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
+            decision_tree_file = config.get("decision_tree_file", "").strip()
+
+            decision_tree = None
+            if decision_tree_file:
+                import os as _os
+                import yaml as _yaml
+                if not _os.path.exists(decision_tree_file):
+                    print(
+                        f"Warning: decision_tree_file not found at '{decision_tree_file}';"
+                        " email routing disabled."
+                    )
+                else:
+                    with open(decision_tree_file) as _f:
+                        decision_tree = _yaml.safe_load(_f)
 
             if fixture_dir:
                 print(f"Using fixture directory: {fixture_dir}")
@@ -369,6 +385,36 @@ class EmailSheetsApp(ctk.CTk):
                             )
                     else:
                         print(f"  → Could not geocode: {parsed['address']!r}")
+
+                if (
+                    decision_tree
+                    and nearest_charger_dict
+                    and dist_float
+                    and parsed
+                    and hubspot_access_token
+                ):
+                    ctx = {
+                        "driver_state": extract_state_from_address(parsed["address"]),
+                        "charger_state": nearest_charger_dict["state"],
+                        "charger_city": nearest_charger_dict["city"],
+                        "distance_miles": dist_float,
+                    }
+                    try:
+                        email_id = evaluate_tree(decision_tree, ctx)
+                    except (KeyError, ValueError) as e:
+                        print(f"  → Decision tree error: {e}")
+                        email_id = None
+                    if email_id is not None:
+                        sent = send_email(
+                            access_token=hubspot_access_token,
+                            to_email=parsed["email_1"],
+                            email_id=email_id,
+                        )
+                        email_status = "sent" if sent else "failed"
+                        print(
+                            f"  → Email template {email_id} "
+                            f"{'sent' if sent else 'FAILED'} → {parsed['email_1']}"
+                        )
 
                 if spreadsheet_id:
                     if parsed:
