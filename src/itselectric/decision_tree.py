@@ -1,12 +1,12 @@
 """Decision tree evaluator for email routing.
 
 A tree is a nested dict loaded from YAML. Each node is either:
-  - A leaf:   {"email_id": <int | None>}
+  - A leaf:   {"template": <str | None>}
   - A branch: {"condition": {"field": str, "op": str, "value": any},
-               "yes": <node>, "no": <node>}
+               "then": <node>, "else": <node>}
 
-evaluate() walks the tree and returns the email_id at the matching leaf,
-or None if the leaf has a null email_id.
+evaluate() walks the tree and returns the template name at the matching leaf,
+or None if the leaf has a null template.
 """
 
 
@@ -26,7 +26,7 @@ _OPS = {
 }
 
 
-def evaluate(node: dict, context: dict) -> int | None:
+def evaluate(node: dict, context: dict) -> str | None:
     """
     Walk the decision tree, evaluating conditions against context.
 
@@ -36,14 +36,14 @@ def evaluate(node: dict, context: dict) -> int | None:
                  charger_state, charger_city.
 
     Returns:
-        The integer email_id at the matching leaf, or None for a null leaf.
+        The template name string at the matching leaf, or None for a null leaf.
 
     Raises:
         KeyError: If a required context field is missing.
         ValueError: If an operator name is unrecognised.
     """
-    if "email_id" in node:
-        return node["email_id"]
+    if "template" in node:
+        return node["template"]
 
     cond = node["condition"]
     field = cond["field"]
