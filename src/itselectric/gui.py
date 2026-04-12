@@ -294,16 +294,14 @@ class EmailSheetsApp(ctk.CTk):
 
             decision_tree = None
             if decision_tree_file:
-                import os as _os
-                import yaml as _yaml
-                if not _os.path.exists(decision_tree_file):
+                if not os.path.exists(decision_tree_file):
                     print(
                         f"Warning: decision_tree_file not found at '{decision_tree_file}';"
                         " email routing disabled."
                     )
                 else:
                     with open(decision_tree_file) as _f:
-                        decision_tree = _yaml.safe_load(_f)
+                        decision_tree = yaml.safe_load(_f)
 
             if fixture_dir:
                 print(f"Using fixture directory: {fixture_dir}")
