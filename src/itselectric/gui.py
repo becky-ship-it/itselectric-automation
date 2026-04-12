@@ -334,6 +334,9 @@ class EmailSheetsApp(ctk.CTk):
                 content = plain or ""
                 parsed = extract_parsed(content)
 
+                contact_status = ""
+                email_status = ""
+
                 if parsed and hubspot_access_token:
                     contact_id = upsert_contact(
                         access_token=hubspot_access_token,
@@ -341,28 +344,34 @@ class EmailSheetsApp(ctk.CTk):
                         email=parsed["email_1"],
                         address=parsed["address"],
                     )
+                    contact_status = "created" if contact_id else "failed"
                     if contact_id:
                         print(f"  → HubSpot contact: {contact_id}")
                     else:
                         print("  → HubSpot upsert failed (see error above).")
 
+                nearest_charger_dict = None
+                nearest_charger = ""
+                distance_mi = ""
+                dist_float = None
+
+                if parsed and chargers:
+                    coords = geocode_address(parsed["address"], cache_path=geocache_path)
+                    if coords:
+                        lat, lon = coords
+                        result = find_nearest_charger(lat, lon, chargers)
+                        if result:
+                            nearest_charger_dict, dist_float = result
+                            nearest_charger = nearest_charger_dict["name"]
+                            distance_mi = str(dist_float)
+                            print(
+                                f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
+                            )
+                    else:
+                        print(f"  → Could not geocode: {parsed['address']!r}")
+
                 if spreadsheet_id:
                     if parsed:
-                        nearest_charger, distance_mi = "", ""
-                        if chargers:
-                            coords = geocode_address(parsed["address"], cache_path=geocache_path)
-                            if coords:
-                                lat, lon = coords
-                                result = find_nearest_charger(lat, lon, chargers)
-                                if result:
-                                    nearest_charger_dict, dist_float = result
-                                    nearest_charger = nearest_charger_dict["name"]
-                                    distance_mi = str(dist_float)
-                                    print(
-                                        f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
-                                    )
-                            else:
-                                print(f"  → Could not geocode: {parsed['address']!r}")
                         sheet_rows.append(
                             (
                                 sent_date,
@@ -373,19 +382,17 @@ class EmailSheetsApp(ctk.CTk):
                                 content,
                                 nearest_charger,
                                 distance_mi,
+                                contact_status,
+                                email_status,
                             )
                         )
                     else:
-                        sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
+                        sheet_rows.append((sent_date, "", "", "", "", content, "", "", "", ""))
 
             if spreadsheet_id and sheet_rows and creds:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
-                def _hash(r):
-                    d, n, a, e1, e2, c, _charger, _dist = r
-                    return row_hash([d, n, a, e1, e2, c], content_limit)
-
-                new_rows = [r for r in sheet_rows if _hash(r) not in existing]
+                new_rows = [r for r in sheet_rows if row_hash(r, content_limit) not in existing]
                 skipped = len(sheet_rows) - len(new_rows)
                 if skipped:
                     print(f"Skipping {skipped} row(s) already on sheet.")

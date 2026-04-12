@@ -10,7 +10,13 @@ from .auth import get_credentials
 from .decision_tree import evaluate as evaluate_tree
 from .extract import extract_parsed
 from .fixture import load_fixture_messages
-from .geo import DEFAULT_CHARGERS_CSV, extract_state_from_address, find_nearest_charger, geocode_address, load_chargers
+from .geo import (
+    DEFAULT_CHARGERS_CSV,
+    extract_state_from_address,
+    find_nearest_charger,
+    geocode_address,
+    load_chargers,
+)
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
 from .hubspot import send_email, upsert_contact
 from .sheets import append_rows, get_existing_hashes, row_hash
@@ -222,7 +228,13 @@ def main() -> None:
             else:
                 print(f"  → Could not geocode: {parsed['address']!r}")
 
-        if decision_tree and nearest_charger_dict and parsed and args.hubspot_access_token:
+        if (
+            decision_tree
+            and nearest_charger_dict
+            and dist_float
+            and parsed
+            and args.hubspot_access_token
+        ):
             ctx = _build_tree_context(
                 address=parsed["address"],
                 charger_dict=nearest_charger_dict,
@@ -240,7 +252,10 @@ def main() -> None:
                     email_id=email_id,
                 )
                 email_status = "sent" if sent else "failed"
-                print(f"  → Email template {email_id} {'sent' if sent else 'FAILED'} → {parsed['email_1']}")
+                print(
+                    f"""  → Email template {email_id} """
+                    f"""{'sent' if sent else 'FAILED'} → {parsed['email_1']}"""
+                )
 
         if args.spreadsheet_id:
             if parsed:
@@ -270,14 +285,7 @@ def main() -> None:
                 creds, args.spreadsheet_id, args.sheet, args.content_limit
             )
 
-            def _hash(r):
-                sent_date, name, address, email_1, email_2, content, _charger, _dist, _hs_c, _hs_e = r
-                return row_hash(
-                    [sent_date, name, address, email_1, email_2, content],
-                    args.content_limit,
-                )
-
-            new_rows = [r for r in sheet_rows if _hash(r) not in existing]
+            new_rows = [r for r in sheet_rows if row_hash(r, args.content_limit) not in existing]
             skipped = len(sheet_rows) - len(new_rows)
             if skipped:
                 print(f"Skipping {skipped} row(s) already on sheet.")
