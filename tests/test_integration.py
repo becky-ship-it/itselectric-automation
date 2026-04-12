@@ -11,7 +11,7 @@ What this tests end-to-end:
 - format_sent_date / get_body_from_payload / body_to_plain correctly decode them
 - extract_parsed correctly identifies parsed vs unparsed messages
 - geocode_address returns cached coordinates without hitting the network
-- find_nearest_charger returns a real charger name and distance
+- find_nearest_charger returns a charger dict and distance
 """
 
 import json
@@ -94,12 +94,14 @@ class TestFullPipeline:
         """A Brooklyn fixture address resolves to a real nearby charger."""
         coords = geocode_address("19 Morris Ave, Brooklyn, NY 11205", cache_path=geocache_file)
         assert coords is not None
-        name, dist = find_nearest_charger(*coords, chargers)
-        assert name != ""
+        charger_dict, dist = find_nearest_charger(*coords, chargers)
+        assert charger_dict["name"] != ""
+        assert charger_dict["city"] != ""
+        assert charger_dict["state"] != ""
         assert dist < 5.0  # well within 5 miles
 
     def test_full_row_building(self, geocache_file, chargers):
-        """End-to-end: fixture → extract → geo → 8-element row tuples."""
+        """End-to-end: fixture → extract → geo → 10-element row tuples."""
         messages = load_fixture_messages(FIXTURES_DIR)
         rows = []
 
@@ -115,7 +117,9 @@ class TestFullPipeline:
                 if coords:
                     result = find_nearest_charger(*coords, chargers)
                     if result:
-                        nearest_charger, distance_mi = result[0], str(result[1])
+                        nearest_charger_dict, dist_float = result
+                        nearest_charger = nearest_charger_dict["name"]
+                        distance_mi = str(dist_float)
 
             if parsed:
                 rows.append(

@@ -54,5 +54,5 @@ def evaluate(node: dict, context: dict) -> int | None:
         raise ValueError(f"Unknown operator: {op!r}. Valid ops: {sorted(_OPS)}")
 
     actual = context[field]  # raises KeyError if field is absent
-    branch = "yes" if _OPS[op](actual, value) else "no"
+    branch = "then" if _OPS[op](actual, value) else "else"
     return evaluate(node[branch], context)

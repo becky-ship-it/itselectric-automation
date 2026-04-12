@@ -19,8 +19,8 @@ class TestEvaluateConditions:
     def _branch(self, field, op, value, yes_id, no_id):
         return {
             "condition": {"field": field, "op": op, "value": value},
-            "yes": {"email_id": yes_id},
-            "no": {"email_id": no_id},
+            "then": {"email_id": yes_id},
+            "else": {"email_id": no_id},
         }
 
     def test_lt_true(self):
@@ -77,23 +77,23 @@ class TestEvaluateNested:
 
     _TREE = {
         "condition": {"field": "distance_miles", "op": "lt", "value": 0.5},
-        "yes": {"email_id": 11111},  # Get General Car Info
-        "no": {
+        "then": {"email_id": 11111},  # Get General Car Info
+        "else": {
             "condition": {"field": "distance_miles", "op": "lt", "value": 100},
-            "yes": {
+            "then": {
                 "condition": {"field": "driver_state", "op": "eq", "value": "CA"},
-                "yes": {
+                "then": {
                     "condition": {
                         "field": "charger_city",
                         "op": "in",
                         "value": ["Los Angeles", "San Francisco"],
                     },
-                    "yes": {"email_id": 67890},  # Get California Car Info
-                    "no": {"email_id": 22222},   # Waitlist
+                    "then": {"email_id": 67890},  # Get California Car Info
+                    "else": {"email_id": 22222},  # Waitlist
                 },
-                "no": {"email_id": 11111},  # Get General Car Info
+                "else": {"email_id": 11111},  # Get General Car Info
             },
-            "no": {"email_id": 22222},  # Waitlist
+            "else": {"email_id": 22222},  # Waitlist
         },
     }
 
@@ -118,8 +118,8 @@ class TestEvaluateErrors:
         """Missing context field raises KeyError — fail loudly rather than silently wrong."""
         node = {
             "condition": {"field": "distance_miles", "op": "lt", "value": 10},
-            "yes": {"email_id": 1},
-            "no": {"email_id": 2},
+            "then": {"email_id": 1},
+            "else": {"email_id": 2},
         }
         with pytest.raises(KeyError):
             evaluate(node, {})
@@ -128,8 +128,8 @@ class TestEvaluateErrors:
         """Unknown operator raises ValueError."""
         node = {
             "condition": {"field": "distance_miles", "op": "contains", "value": 5},
-            "yes": {"email_id": 1},
-            "no": {"email_id": 2},
+            "then": {"email_id": 1},
+            "else": {"email_id": 2},
         }
         with pytest.raises(ValueError, match="Unknown operator"):
             evaluate(node, {"distance_miles": 3})

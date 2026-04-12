@@ -1,6 +1,6 @@
 """HubSpot CRM helpers: upsert contacts and send transactional emails."""
 
-import requests
+import requests  # type: ignore
 
 _BASE = "https://api.hubapi.com"
 
