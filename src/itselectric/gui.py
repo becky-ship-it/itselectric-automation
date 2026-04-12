@@ -255,9 +255,9 @@ class EmailSheetsApp(ctk.CTk):
             from googleapiclient.errors import HttpError  # type: ignore
 
             from itselectric.auth import get_credentials
+            from itselectric.decision_tree import evaluate as evaluate_tree
             from itselectric.extract import extract_parsed
             from itselectric.fixture import load_fixture_messages
-            from itselectric.decision_tree import evaluate as evaluate_tree
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
                 extract_state_from_address,
@@ -307,12 +307,16 @@ class EmailSheetsApp(ctk.CTk):
                 print(f"Using fixture directory: {fixture_dir}")
                 messages = load_fixture_messages(fixture_dir)
                 # Still need credentials when writing to a sheet, even in fixture mode.
-                creds = get_credentials(
-                    token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
-                    credentials_file=os.path.join(
-                        str(Path(yaml_path).parent), "credentials.json"
-                    ),
-                ) if spreadsheet_id else None
+                creds = (
+                    get_credentials(
+                        token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
+                        credentials_file=os.path.join(
+                            str(Path(yaml_path).parent), "credentials.json"
+                        ),
+                    )
+                    if spreadsheet_id
+                    else None
+                )
             else:
                 print("Resolving credentials …")
                 config_dir = str(Path(yaml_path).parent)
@@ -378,9 +382,7 @@ class EmailSheetsApp(ctk.CTk):
                             nearest_charger_dict, dist_float = result
                             nearest_charger = nearest_charger_dict["name"]
                             distance_mi = str(dist_float)
-                            print(
-                                f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
-                            )
+                            print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
                     else:
                         print(f"  → Could not geocode: {parsed['address']!r}")
 
@@ -436,7 +438,9 @@ class EmailSheetsApp(ctk.CTk):
             if spreadsheet_id and sheet_rows and creds:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
-                new_rows = [r for r in sheet_rows if row_hash(r, content_limit) not in existing]
+                new_rows = [
+                    r for r in sheet_rows if row_hash(list(r), content_limit) not in existing
+                ]
                 skipped = len(sheet_rows) - len(new_rows)
                 if skipped:
                     print(f"Skipping {skipped} row(s) already on sheet.")
