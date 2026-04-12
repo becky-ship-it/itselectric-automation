@@ -270,8 +270,10 @@ class EmailSheetsApp(ctk.CTk):
                 fetch_messages,
                 format_sent_date,
                 get_body_from_payload,
+                load_template,
+                send_email,
             )
-            from itselectric.hubspot import send_email, upsert_contact
+            from itselectric.hubspot import upsert_contact
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
@@ -291,6 +293,7 @@ class EmailSheetsApp(ctk.CTk):
             chargers_path = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
             geocache_path = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
             decision_tree_file = config.get("decision_tree_file", "").strip()
+            template_dir = config.get("template_dir", "").strip()
 
             decision_tree = None
             if decision_tree_file:
@@ -306,7 +309,7 @@ class EmailSheetsApp(ctk.CTk):
             if fixture_dir:
                 print(f"Using fixture directory: {fixture_dir}")
                 messages = load_fixture_messages(fixture_dir)
-                # Still need credentials when writing to a sheet, even in fixture mode.
+                # Still need credentials when writing to a sheet or sending email.
                 creds = (
                     get_credentials(
                         token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
@@ -314,7 +317,7 @@ class EmailSheetsApp(ctk.CTk):
                             str(Path(yaml_path).parent), "credentials.json"
                         ),
                     )
-                    if spreadsheet_id
+                    if (spreadsheet_id or template_dir)
                     else None
                 )
             else:
@@ -391,7 +394,8 @@ class EmailSheetsApp(ctk.CTk):
                     and nearest_charger_dict
                     and dist_float
                     and parsed
-                    and hubspot_access_token
+                    and template_dir
+                    and creds
                 ):
                     ctx = {
                         "driver_state": extract_state_from_address(parsed["address"]),
@@ -400,19 +404,26 @@ class EmailSheetsApp(ctk.CTk):
                         "distance_miles": dist_float,
                     }
                     try:
-                        email_id = evaluate_tree(decision_tree, ctx)
+                        template_name = evaluate_tree(decision_tree, ctx)
                     except (KeyError, ValueError) as e:
                         print(f"  → Decision tree error: {e}")
-                        email_id = None
-                    if email_id is not None:
-                        sent = send_email(
-                            access_token=hubspot_access_token,
-                            to_email=parsed["email_1"],
-                            email_id=email_id,
-                        )
+                        template_name = None
+                    if template_name is not None:
+                        try:
+                            subject, body = load_template(template_name, template_dir)
+                            body = body.format_map(
+                                {"name": parsed["name"], "address": parsed["address"]}
+                            )
+                        except FileNotFoundError:
+                            print(
+                                f"  → Template '{template_name}' not found in {template_dir}"
+                            )
+                            template_name = None
+                    if template_name is not None:
+                        sent = send_email(creds, parsed["email_1"], subject, body)
                         email_status = "sent" if sent else "failed"
                         print(
-                            f"  → Email template {email_id} "
+                            f"  → Email '{template_name}' "
                             f"{'sent' if sent else 'FAILED'} → {parsed['email_1']}"
                         )
 

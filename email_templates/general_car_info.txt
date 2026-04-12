@@ -1,0 +1,9 @@
+Thanks for your interest in It's Electric!
+
+Hi {name},
+
+Thanks for reaching out about EV charging at your address ({address}).
+
+We'd love to learn more about your vehicle so we can get you set up with the right charging solution.
+
+— The It's Electric Team

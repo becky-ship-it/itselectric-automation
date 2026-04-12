@@ -17,8 +17,15 @@ from .geo import (
     geocode_address,
     load_chargers,
 )
-from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
-from .hubspot import send_email, upsert_contact
+from .gmail import (
+    body_to_plain,
+    fetch_messages,
+    format_sent_date,
+    get_body_from_payload,
+    load_template,
+    send_email,
+)
+from .hubspot import upsert_contact
 from .sheets import append_rows, get_existing_hashes, row_hash
 
 CONFIG_FILE = "config.yaml"
@@ -35,6 +42,7 @@ _DEFAULTS = {
     "fixture_dir": "",
     "hubspot_access_token": "",
     "decision_tree_file": "",
+    "template_dir": "",
 }
 
 
@@ -144,6 +152,12 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="PATH",
         help="Path to YAML file defining the email routing decision tree.",
     )
+    parser.add_argument(
+        "--template-dir",
+        default=config.get("template_dir", _DEFAULTS["template_dir"]),
+        metavar="DIR",
+        help="Directory containing email template .txt files.",
+    )
     return parser.parse_args()
 
 
@@ -166,8 +180,8 @@ def main() -> None:
         except FileNotFoundError as e:
             print(f"Fixture directory not found: {e}")
             return
-        # Still need credentials when writing to a sheet, even in fixture mode.
-        creds = get_credentials() if args.spreadsheet_id else None
+        # Still need credentials when writing to a sheet or sending email.
+        creds = get_credentials() if (args.spreadsheet_id or args.template_dir) else None
     else:
         creds = get_credentials()
         try:
@@ -228,33 +242,30 @@ def main() -> None:
             else:
                 print(f"  → Could not geocode: {parsed['address']!r}")
 
-        if (
-            decision_tree
-            and nearest_charger_dict
-            and dist_float
-            and parsed
-            and args.hubspot_access_token
-        ):
+        if decision_tree and nearest_charger_dict and dist_float and parsed and args.template_dir and creds:
             ctx = _build_tree_context(
                 address=parsed["address"],
                 charger_dict=nearest_charger_dict,
                 distance_miles=dist_float,
             )
             try:
-                email_id = evaluate_tree(decision_tree, ctx)
+                template_name = evaluate_tree(decision_tree, ctx)
             except (KeyError, ValueError) as e:
                 print(f"  → Decision tree error: {e}")
-                email_id = None
-            if email_id is not None:
-                sent = send_email(
-                    access_token=args.hubspot_access_token,
-                    to_email=parsed["email_1"],
-                    email_id=email_id,
-                )
+                template_name = None
+            if template_name is not None:
+                try:
+                    subject, body = load_template(template_name, args.template_dir)
+                    body = body.format_map({"name": parsed["name"], "address": parsed["address"]})
+                except FileNotFoundError:
+                    print(f"  → Template '{template_name}' not found in {args.template_dir}")
+                    template_name = None
+            if template_name is not None:
+                sent = send_email(creds, parsed["email_1"], subject, body)
                 email_status = "sent" if sent else "failed"
                 print(
-                    f"""  → Email template {email_id} """
-                    f"""{'sent' if sent else 'FAILED'} → {parsed['email_1']}"""
+                    f"  → Email '{template_name}' "
+                    f"{'sent' if sent else 'FAILED'} → {parsed['email_1']}"
                 )
 
         if args.spreadsheet_id:
