@@ -8,6 +8,7 @@ import pytest
 
 from itselectric.geo import (
     _strip_unit,
+    extract_state_from_address,
     find_nearest_charger,
     geocode_address,
     load_chargers,
@@ -124,6 +125,53 @@ def test_load_chargers_default_path_exists():
     assert "lat" in chargers[0]
     assert "lon" in chargers[0]
     assert "name" in chargers[0]
+
+
+# ── extract_state_from_address ────────────────────────────────────────────────
+
+
+class TestExtractStateFromAddress:
+    # 2-letter abbreviation path
+    def test_standard_abbreviation(self):
+        assert extract_state_from_address("123 Main St, Dallas, TX 75001") == "TX"
+
+    def test_abbreviation_no_zip(self):
+        assert extract_state_from_address("789 Pine Rd, Denver, CO") == "CO"
+
+    def test_abbreviation_uppercase_always(self):
+        assert extract_state_from_address("1 Elm St, Portland, OR 97201") == "OR"
+
+    # Full state name path
+    def test_full_state_name(self):
+        assert extract_state_from_address("456 Oak Ave, Los Angeles, California 90001") == "CA"
+
+    def test_full_state_name_no_zip(self):
+        assert extract_state_from_address("99 Elm St, Austin, Texas") == "TX"
+
+    def test_full_state_name_lowercase(self):
+        assert extract_state_from_address("1 Main St, Denver, colorado") == "CO"
+
+    def test_full_state_name_mixed_case(self):
+        assert extract_state_from_address("1 Main St, Salt Lake City, Utah") == "UT"
+
+    def test_multi_word_state(self):
+        assert extract_state_from_address("5 Oak St, Charlotte, North Carolina 28201") == "NC"
+
+    def test_multi_word_state_west_virginia(self):
+        assert extract_state_from_address("10 River Rd, Charleston, West Virginia") == "WV"
+
+    # None path — only for genuinely unrecognisable input
+    def test_returns_none_for_misspelled_state(self):
+        assert extract_state_from_address("123 Main St, Dallas, Texass") is None
+
+    def test_returns_none_when_no_state(self):
+        assert extract_state_from_address("123 Main Street") is None
+
+    def test_returns_none_for_empty_string(self):
+        assert extract_state_from_address("") is None
+
+    def test_returns_none_for_none(self):
+        assert extract_state_from_address(None) is None
 
 
 # ── load_chargers city/state fields ──────────────────────────────────────────
