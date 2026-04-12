@@ -15,6 +15,8 @@ COLUMNS = [
     "Content",
     "Nearest Charger",
     "Distance (mi)",
+    "HubSpot Contact",   # "created" | "failed" | "" (not attempted)
+    "HubSpot Email",     # "sent" | "failed" | "" (not attempted)
 ]
 
 
@@ -63,7 +65,7 @@ def get_existing_hashes(
         result = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A:H")
+            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A:J")
             .execute()
         )
     except HttpError:
@@ -83,17 +85,17 @@ def append_rows(
     Append rows to the sheet.
 
     Each row is (sent_date, name, address, email_1, email_2, content,
-    nearest_charger, distance_mi).
+    nearest_charger, distance_mi, hubspot_contact, hubspot_email).
     Prepends a header row if the sheet is currently empty.
     """
     service = build("sheets", "v4", credentials=creds)
-    range_name = f"'{sheet_name}'!A:H"
+    range_name = f"'{sheet_name}'!A:J"
 
     try:
         existing = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:H1")
+            .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:J1")
             .execute()
         )
         has_header = bool(existing.get("values"))
@@ -101,8 +103,8 @@ def append_rows(
         has_header = False
 
     def _fmt(r: tuple) -> list:
-        sd, nm, addr, e1, e2, body, nc, dm = r
-        return [sd, nm, addr, e1, e2, truncate(body, content_limit), nc, dm]
+        sd, nm, addr, e1, e2, body, nc, dm, hs_contact, hs_email = r
+        return [sd, nm, addr, e1, e2, truncate(body, content_limit), nc, dm, hs_contact, hs_email]
 
     data = [_fmt(r) for r in rows]
     if not data:
