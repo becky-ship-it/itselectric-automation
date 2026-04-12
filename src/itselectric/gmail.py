@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore
 
 
 def decode_base64(data: str) -> str:

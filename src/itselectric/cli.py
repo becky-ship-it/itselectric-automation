@@ -3,15 +3,22 @@
 import argparse
 import os
 
-import yaml
-from googleapiclient.errors import HttpError
+import yaml  # type: ignore
+from googleapiclient.errors import HttpError  # type: ignore
 
 from .auth import get_credentials
+from .decision_tree import evaluate as evaluate_tree
 from .extract import extract_parsed
 from .fixture import load_fixture_messages
-from .geo import DEFAULT_CHARGERS_CSV, find_nearest_charger, geocode_address, load_chargers
+from .geo import (
+    DEFAULT_CHARGERS_CSV,
+    extract_state_from_address,
+    find_nearest_charger,
+    geocode_address,
+    load_chargers,
+)
 from .gmail import body_to_plain, fetch_messages, format_sent_date, get_body_from_payload
-from .hubspot import upsert_contact
+from .hubspot import send_email, upsert_contact
 from .sheets import append_rows, get_existing_hashes, row_hash
 
 CONFIG_FILE = "config.yaml"
@@ -27,7 +34,29 @@ _DEFAULTS = {
     "geocache": "geocache.json",
     "fixture_dir": "",
     "hubspot_access_token": "",
+    "decision_tree_file": "",
 }
+
+
+def _load_decision_tree(path: str) -> dict | None:
+    """Load and return the decision tree dict from a YAML file, or None if path is empty/missing."""
+    if not path:
+        return None
+    if not os.path.exists(path):
+        print(f"Warning: decision_tree_file not found at '{path}'; email routing disabled.")
+        return None
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def _build_tree_context(address: str, charger_dict: dict, distance_miles: float) -> dict:
+    """Build the context dict passed to the decision tree evaluator."""
+    return {
+        "driver_state": extract_state_from_address(address),
+        "charger_state": charger_dict["state"],
+        "charger_city": charger_dict["city"],
+        "distance_miles": distance_miles,
+    }
 
 
 def _load_config(path: str = CONFIG_FILE) -> dict:
@@ -109,6 +138,12 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="TOKEN",
         help="HubSpot Private App access token. When set, creates/updates contacts in HubSpot.",
     )
+    parser.add_argument(
+        "--decision-tree-file",
+        default=config.get("decision_tree_file", _DEFAULTS["decision_tree_file"]),
+        metavar="PATH",
+        help="Path to YAML file defining the email routing decision tree.",
+    )
     return parser.parse_args()
 
 
@@ -121,6 +156,8 @@ def main() -> None:
     except FileNotFoundError:
         print(f"Warning: chargers file not found at '{args.chargers}'; proximity lookup disabled.")
         chargers = []
+
+    decision_tree = _load_decision_tree(args.decision_tree_file)
 
     if args.fixture_dir:
         print(f"Using fixture directory: {args.fixture_dir}")
@@ -156,6 +193,9 @@ def main() -> None:
         content = plain or ""
         parsed = extract_parsed(content)
 
+        contact_status = ""
+        email_status = ""
+
         if parsed and args.hubspot_access_token:
             contact_id = upsert_contact(
                 access_token=args.hubspot_access_token,
@@ -163,24 +203,62 @@ def main() -> None:
                 email=parsed["email_1"],
                 address=parsed["address"],
             )
+            contact_status = "created" if contact_id else "failed"
             if contact_id:
                 print(f"  → HubSpot contact: {contact_id}")
             else:
                 print("  → HubSpot upsert failed (see error above).")
 
+        # Geocode outside the sheets gate — decision tree also needs charger proximity.
+        nearest_charger_dict = None
+        nearest_charger = ""
+        distance_mi = ""
+        dist_float = None
+
+        if parsed and chargers:
+            coords = geocode_address(parsed["address"], cache_path=args.geocache)
+            if coords:
+                lat, lon = coords
+                result = find_nearest_charger(lat, lon, chargers)
+                if result:
+                    nearest_charger_dict, dist_float = result
+                    nearest_charger = nearest_charger_dict["name"]
+                    distance_mi = str(dist_float)
+                    print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
+            else:
+                print(f"  → Could not geocode: {parsed['address']!r}")
+
+        if (
+            decision_tree
+            and nearest_charger_dict
+            and dist_float
+            and parsed
+            and args.hubspot_access_token
+        ):
+            ctx = _build_tree_context(
+                address=parsed["address"],
+                charger_dict=nearest_charger_dict,
+                distance_miles=dist_float,
+            )
+            try:
+                email_id = evaluate_tree(decision_tree, ctx)
+            except (KeyError, ValueError) as e:
+                print(f"  → Decision tree error: {e}")
+                email_id = None
+            if email_id is not None:
+                sent = send_email(
+                    access_token=args.hubspot_access_token,
+                    to_email=parsed["email_1"],
+                    email_id=email_id,
+                )
+                email_status = "sent" if sent else "failed"
+                print(
+                    f"""  → Email template {email_id} """
+                    f"""{'sent' if sent else 'FAILED'} → {parsed['email_1']}"""
+                )
+
         if args.spreadsheet_id:
             if parsed:
-                nearest_charger, distance_mi = "", ""
-                if chargers:
-                    coords = geocode_address(parsed["address"], cache_path=args.geocache)
-                    if coords:
-                        lat, lon = coords
-                        result = find_nearest_charger(lat, lon, chargers)
-                        if result:
-                            nearest_charger, distance_mi = result[0], str(result[1])
-                            print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
-                    else:
-                        print(f"  → Could not geocode: {parsed['address']!r}")
                 sheet_rows.append(
                     (
                         sent_date,
@@ -191,25 +269,23 @@ def main() -> None:
                         content,
                         nearest_charger,
                         distance_mi,
+                        contact_status,
+                        email_status,
                     )
                 )
             else:
-                sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
+                sheet_rows.append((sent_date, "", "", "", "", content, "", "", "", ""))
 
     if args.spreadsheet_id and sheet_rows:
+        if not creds:
+            print("Error: credentials required to write to Sheets.")
+            return
         try:
             existing = get_existing_hashes(
                 creds, args.spreadsheet_id, args.sheet, args.content_limit
             )
 
-            def _hash(r):
-                sent_date, name, address, email_1, email_2, content, _charger, _dist = r
-                return row_hash(
-                    [sent_date, name, address, email_1, email_2, content],
-                    args.content_limit,
-                )
-
-            new_rows = [r for r in sheet_rows if _hash(r) not in existing]
+            new_rows = [r for r in sheet_rows if row_hash(r, args.content_limit) not in existing]
             skipped = len(sheet_rows) - len(new_rows)
             if skipped:
                 print(f"Skipping {skipped} row(s) already on sheet.")

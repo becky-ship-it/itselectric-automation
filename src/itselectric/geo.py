@@ -6,9 +6,9 @@ import re
 from functools import cache
 from pathlib import Path
 
-from geopy.distance import geodesic
-from geopy.extra.rate_limiter import RateLimiter
-from geopy.geocoders import Nominatim
+from geopy.distance import geodesic  # type: ignore
+from geopy.extra.rate_limiter import RateLimiter  # type: ignore
+from geopy.geocoders import Nominatim  # type: ignore
 
 DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 
@@ -18,6 +18,66 @@ DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 _UNIT_RE = re.compile(
     r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*#?\s*[^,]+", re.IGNORECASE
 )
+
+# Matches a 2-letter US state abbreviation preceded by a comma, optionally
+# followed by a ZIP code, at the end of the address string.
+_STATE_ABBREV_RE = re.compile(r",\s*([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\s*$", re.IGNORECASE)
+
+# Matches a full state name (1-3 words) preceded by a comma, optionally
+# followed by a ZIP code, at the end of the address string.
+_STATE_FULLNAME_RE = re.compile(
+    r",\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,2}?)\s*(?:\d{5}(?:-\d{4})?)?\s*$"
+)
+
+# Maps lowercased full state names to 2-letter USPS abbreviations.
+_STATE_NAME_TO_ABBREV: dict[str, str] = {
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
+    "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE",
+    "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID",
+    "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
+    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
+    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS",
+    "missouri": "MO", "montana": "MT", "nebraska": "NE", "nevada": "NV",
+    "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+    "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK",
+    "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT",
+    "vermont": "VT", "virginia": "VA", "washington": "WA", "west virginia": "WV",
+    "wisconsin": "WI", "wyoming": "WY", "district of columbia": "DC",
+}
+
+
+def extract_state_from_address(address: str | None) -> str | None:
+    """
+    Extract the US state abbreviation from a free-text address string.
+
+    Tries two strategies in order:
+    1. Look for a 2-letter abbreviation (e.g. "TX", "CA") at the end of the string.
+    2. Look for a full state name (e.g. "Texas", "North Carolina") and map it to
+       its abbreviation via a lookup table.
+
+    Returns the 2-letter abbreviation in uppercase, or None only if the state
+    is genuinely absent or misspelled.
+    """
+    if not address or not address.strip():
+        return None
+    address = address.strip()
+
+    # Strategy 1: 2-letter abbreviation
+    m = _STATE_ABBREV_RE.search(address)
+    if m:
+        return m.group(1).upper()
+
+    # Strategy 2: full state name lookup
+    m = _STATE_FULLNAME_RE.search(address)
+    if m:
+        candidate = m.group(1).strip().lower()
+        abbrev = _STATE_NAME_TO_ABBREV.get(candidate)
+        if abbrev:
+            return abbrev
+
+    return None
+
 
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0")
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)
@@ -58,6 +118,12 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
                     "name": (
                         f"{row['STREET'].strip()}, {row['CITY'].strip()}, {row['STATE'].strip()}"
                     ),
+                    "city": row["CITY"].strip().title(),
+                    # Big assumption: state is always a 2-letter abbreviation in the CSV.
+                    # If not, we could apply the same extraction logic as in 
+                    # extract_state_from_address(), but that would be more complex and error-prone,
+                    # so we just enforce the format in the data.
+                    "state": row["STATE"].strip().upper(),
                     "lat": float(lat_raw),
                     "lon": float(lon_raw),
                 }
@@ -65,17 +131,17 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
     return chargers
 
 
-def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[str, float] | None:
+def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[dict, float] | None:
     """
     Find the closest charger to (lat, lon).
 
     Args:
         lat: Latitude of the query point.
         lon: Longitude of the query point.
-        chargers: List of charger dicts, each with keys lat, lon, and name.
+        chargers: List of charger dicts, each with keys lat, lon, name, city, state.
 
     Returns:
-        A (charger_name, distance_miles) tuple with distance rounded to 2 decimal
+        A (charger_dict, distance_miles) tuple with distance rounded to 2 decimal
         places, or None if the chargers list is empty.
     """
     if not chargers:
@@ -83,7 +149,7 @@ def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[
     point = (lat, lon)
     nearest = min(chargers, key=lambda c: geodesic(point, (c["lat"], c["lon"])).miles)
     distance = round(geodesic(point, (nearest["lat"], nearest["lon"])).miles, 2)
-    return nearest["name"], distance
+    return nearest, distance
 
 
 def _strip_unit(address: str) -> str:

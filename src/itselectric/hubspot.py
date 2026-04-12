@@ -1,6 +1,6 @@
-"""HubSpot CRM helpers: upsert contacts via the v3 batch API."""
+"""HubSpot CRM helpers: upsert contacts and send transactional emails."""
 
-import requests
+import requests  # type: ignore
 
 _BASE = "https://api.hubapi.com"
 
@@ -56,3 +56,34 @@ def upsert_contact(
     except requests.RequestException as e:
         print(f"HubSpot API error: {e}")
         return None
+
+
+def send_email(access_token: str, to_email: str, email_id: int) -> bool:
+    """
+    Send a HubSpot transactional email to a contact.
+
+    Uses the Marketing transactional send endpoint. Requires the HubSpot account
+    to have the transactional email add-on enabled.
+
+    Args:
+        access_token: HubSpot Private App access token.
+        to_email: Recipient email address.
+        email_id: HubSpot transactional email template ID.
+
+    Returns:
+        True on success, False if the request fails.
+    """
+    try:
+        resp = requests.post(
+            f"{_BASE}/marketing/v3/transactional/single-email/send",
+            headers=_headers(access_token),
+            json={
+                "emailId": email_id,
+                "message": {"to": to_email},
+            },
+        )
+        resp.raise_for_status()
+        return True
+    except requests.RequestException as e:
+        print(f"HubSpot send_email error: {e}")
+        return False

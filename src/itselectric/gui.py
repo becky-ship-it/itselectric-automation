@@ -9,8 +9,8 @@ import threading
 from pathlib import Path
 from tkinter import filedialog
 
-import customtkinter as ctk
-import yaml
+import customtkinter as ctk  # type: ignore
+import yaml  # type: ignore
 
 # ── Theme ──────────────────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
@@ -252,14 +252,15 @@ class EmailSheetsApp(ctk.CTk):
         success, message = False, "Unknown error"
         try:
             # Import here so PyInstaller can tree-shake correctly.
-            from googleapiclient.errors import HttpError
+            from googleapiclient.errors import HttpError  # type: ignore
 
             from itselectric.auth import get_credentials
+            from itselectric.decision_tree import evaluate as evaluate_tree
             from itselectric.extract import extract_parsed
             from itselectric.fixture import load_fixture_messages
-            from itselectric.hubspot import upsert_contact
             from itselectric.geo import (
                 DEFAULT_CHARGERS_CSV,
+                extract_state_from_address,
                 find_nearest_charger,
                 geocode_address,
                 load_chargers,
@@ -270,6 +271,7 @@ class EmailSheetsApp(ctk.CTk):
                 format_sent_date,
                 get_body_from_payload,
             )
+            from itselectric.hubspot import send_email, upsert_contact
             from itselectric.sheets import append_rows, get_existing_hashes, row_hash
 
             print(f"Starting pipeline with config: {yaml_path}")
@@ -288,17 +290,33 @@ class EmailSheetsApp(ctk.CTk):
             fixture_dir = config.get("fixture_dir", "").strip()
             chargers_path = config.get("chargers", str(DEFAULT_CHARGERS_CSV))
             geocache_path = config.get("geocache", str(Path(yaml_path).parent / "geocache.json"))
+            decision_tree_file = config.get("decision_tree_file", "").strip()
+
+            decision_tree = None
+            if decision_tree_file:
+                if not os.path.exists(decision_tree_file):
+                    print(
+                        f"Warning: decision_tree_file not found at '{decision_tree_file}';"
+                        " email routing disabled."
+                    )
+                else:
+                    with open(decision_tree_file) as _f:
+                        decision_tree = yaml.safe_load(_f)
 
             if fixture_dir:
                 print(f"Using fixture directory: {fixture_dir}")
                 messages = load_fixture_messages(fixture_dir)
                 # Still need credentials when writing to a sheet, even in fixture mode.
-                creds = get_credentials(
-                    token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
-                    credentials_file=os.path.join(
-                        str(Path(yaml_path).parent), "credentials.json"
-                    ),
-                ) if spreadsheet_id else None
+                creds = (
+                    get_credentials(
+                        token_file=os.path.join(str(Path(yaml_path).parent), "token.json"),
+                        credentials_file=os.path.join(
+                            str(Path(yaml_path).parent), "credentials.json"
+                        ),
+                    )
+                    if spreadsheet_id
+                    else None
+                )
             else:
                 print("Resolving credentials …")
                 config_dir = str(Path(yaml_path).parent)
@@ -334,6 +352,9 @@ class EmailSheetsApp(ctk.CTk):
                 content = plain or ""
                 parsed = extract_parsed(content)
 
+                contact_status = ""
+                email_status = ""
+
                 if parsed and hubspot_access_token:
                     contact_id = upsert_contact(
                         access_token=hubspot_access_token,
@@ -341,26 +362,62 @@ class EmailSheetsApp(ctk.CTk):
                         email=parsed["email_1"],
                         address=parsed["address"],
                     )
+                    contact_status = "created" if contact_id else "failed"
                     if contact_id:
                         print(f"  → HubSpot contact: {contact_id}")
                     else:
                         print("  → HubSpot upsert failed (see error above).")
 
+                nearest_charger_dict = None
+                nearest_charger = ""
+                distance_mi = ""
+                dist_float = None
+
+                if parsed and chargers:
+                    coords = geocode_address(parsed["address"], cache_path=geocache_path)
+                    if coords:
+                        lat, lon = coords
+                        result = find_nearest_charger(lat, lon, chargers)
+                        if result:
+                            nearest_charger_dict, dist_float = result
+                            nearest_charger = nearest_charger_dict["name"]
+                            distance_mi = str(dist_float)
+                            print(f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)")
+                    else:
+                        print(f"  → Could not geocode: {parsed['address']!r}")
+
+                if (
+                    decision_tree
+                    and nearest_charger_dict
+                    and dist_float
+                    and parsed
+                    and hubspot_access_token
+                ):
+                    ctx = {
+                        "driver_state": extract_state_from_address(parsed["address"]),
+                        "charger_state": nearest_charger_dict["state"],
+                        "charger_city": nearest_charger_dict["city"],
+                        "distance_miles": dist_float,
+                    }
+                    try:
+                        email_id = evaluate_tree(decision_tree, ctx)
+                    except (KeyError, ValueError) as e:
+                        print(f"  → Decision tree error: {e}")
+                        email_id = None
+                    if email_id is not None:
+                        sent = send_email(
+                            access_token=hubspot_access_token,
+                            to_email=parsed["email_1"],
+                            email_id=email_id,
+                        )
+                        email_status = "sent" if sent else "failed"
+                        print(
+                            f"  → Email template {email_id} "
+                            f"{'sent' if sent else 'FAILED'} → {parsed['email_1']}"
+                        )
+
                 if spreadsheet_id:
                     if parsed:
-                        nearest_charger, distance_mi = "", ""
-                        if chargers:
-                            coords = geocode_address(parsed["address"], cache_path=geocache_path)
-                            if coords:
-                                lat, lon = coords
-                                result = find_nearest_charger(lat, lon, chargers)
-                                if result:
-                                    nearest_charger, distance_mi = result[0], str(result[1])
-                                    print(
-                                        f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
-                                    )
-                            else:
-                                print(f"  → Could not geocode: {parsed['address']!r}")
                         sheet_rows.append(
                             (
                                 sent_date,
@@ -371,19 +428,19 @@ class EmailSheetsApp(ctk.CTk):
                                 content,
                                 nearest_charger,
                                 distance_mi,
+                                contact_status,
+                                email_status,
                             )
                         )
                     else:
-                        sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
+                        sheet_rows.append((sent_date, "", "", "", "", content, "", "", "", ""))
 
-            if spreadsheet_id and sheet_rows:
+            if spreadsheet_id and sheet_rows and creds:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
-                def _hash(r):
-                    d, n, a, e1, e2, c, _charger, _dist = r
-                    return row_hash([d, n, a, e1, e2, c], content_limit)
-
-                new_rows = [r for r in sheet_rows if _hash(r) not in existing]
+                new_rows = [
+                    r for r in sheet_rows if row_hash(list(r), content_limit) not in existing
+                ]
                 skipped = len(sheet_rows) - len(new_rows)
                 if skipped:
                     print(f"Skipping {skipped} row(s) already on sheet.")

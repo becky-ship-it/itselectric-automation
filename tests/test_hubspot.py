@@ -1,10 +1,10 @@
-"""Tests for HubSpot contact upsert."""
+"""Tests for HubSpot contact upsert and transactional email send."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from itselectric.hubspot import upsert_contact
+from itselectric.hubspot import send_email, upsert_contact
 
 
 class TestUpsertContact:
@@ -93,3 +93,42 @@ class TestUpsertContact:
             )
 
         assert result is None
+
+
+class TestSendEmail:
+    def _mock_response(self) -> MagicMock:
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        return resp
+
+    def test_posts_to_transactional_endpoint(self):
+        """Calls the correct HubSpot transactional send endpoint."""
+        with patch("itselectric.hubspot.requests.post") as mock_post:
+            mock_post.return_value = self._mock_response()
+            send_email(access_token="tok", to_email="driver@example.com", email_id=12345)
+
+        url = mock_post.call_args.args[0]
+        assert "/marketing/v3/transactional/single-email/send" in url
+
+    def test_sends_correct_body(self):
+        """Request body contains emailId and message.to."""
+        with patch("itselectric.hubspot.requests.post") as mock_post:
+            mock_post.return_value = self._mock_response()
+            send_email(access_token="tok", to_email="driver@example.com", email_id=12345)
+
+        body = mock_post.call_args.kwargs["json"]
+        assert body["emailId"] == 12345
+        assert body["message"]["to"] == "driver@example.com"
+
+    def test_returns_true_on_success(self):
+        with patch("itselectric.hubspot.requests.post") as mock_post:
+            mock_post.return_value = self._mock_response()
+            result = send_email(access_token="tok", to_email="d@example.com", email_id=99)
+        assert result is True
+
+    def test_returns_false_on_request_error(self):
+        import requests as req
+        with patch("itselectric.hubspot.requests.post") as mock_post:
+            mock_post.side_effect = req.RequestException("network error")
+            result = send_email(access_token="tok", to_email="d@example.com", email_id=99)
+        assert result is False

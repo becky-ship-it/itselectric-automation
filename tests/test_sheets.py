@@ -1,6 +1,72 @@
-"""Tests for sheet hashing and deduplication logic."""
+"""Tests for sheet hashing, deduplication, and column structure."""
 
-from itselectric.sheets import row_hash, truncate
+from unittest.mock import MagicMock, patch
+
+from itselectric.sheets import COLUMNS, append_rows, row_hash, truncate
+
+
+def _make_row(contact_status="created", email_status="sent"):
+    return (
+        "2026-01-01", "Jane Smith", "1 Main St, Boston, MA",
+        "jane@example.com", "jane2@example.com", "body text",
+        "1 Main St, Boston, MA", "2.5",
+        contact_status, email_status,
+    )
+
+
+def _mock_service_with_header():
+    """Service mock where the sheet already has a header row."""
+    mock_service = MagicMock()
+    mock_service.spreadsheets().values().get().execute.return_value = {"values": [COLUMNS]}
+    return mock_service
+
+
+class TestSheetColumns:
+    def test_has_hubspot_contact_column(self):
+        assert "HubSpot Contact" in COLUMNS
+
+    def test_has_hubspot_email_column(self):
+        assert "HubSpot Email" in COLUMNS
+
+    def test_column_count_is_ten(self):
+        assert len(COLUMNS) == 10
+
+
+class TestAppendRowsHubSpotStatus:
+    def test_row_includes_contact_and_email_status(self):
+        with patch("itselectric.sheets.build", return_value=_mock_service_with_header()) as _:
+            mock_service = _mock_service_with_header()
+            with patch("itselectric.sheets.build", return_value=mock_service):
+                append_rows(MagicMock(), "sheet-id", "Sheet1", [_make_row()], 5000)
+
+        appended = mock_service.spreadsheets().values().append.call_args.kwargs["body"]["values"]
+        row = appended[0]
+        assert row[8] == "created"
+        assert row[9] == "sent"
+
+    def test_failed_statuses_written(self):
+        mock_service = _mock_service_with_header()
+        with patch("itselectric.sheets.build", return_value=mock_service):
+            append_rows(MagicMock(), "sheet-id", "Sheet1", [_make_row("failed", "failed")], 5000)
+
+        row = mock_service.spreadsheets().values().append.call_args.kwargs["body"]["values"][0]
+        assert row[8] == "failed"
+        assert row[9] == "failed"
+
+    def test_empty_statuses_written(self):
+        mock_service = _mock_service_with_header()
+        with patch("itselectric.sheets.build", return_value=mock_service):
+            append_rows(MagicMock(), "sheet-id", "Sheet1", [_make_row("", "")], 5000)
+
+        row = mock_service.spreadsheets().values().append.call_args.kwargs["body"]["values"][0]
+        assert row[8] == ""
+        assert row[9] == ""
+
+    def test_row_hash_excludes_hubspot_columns(self):
+        """Dedup hash must not change when HubSpot status columns differ."""
+        row_created = list(_make_row("created", "sent"))
+        row_failed = list(_make_row("failed", "failed"))
+        assert row_hash(row_created, 5000) == row_hash(row_failed, 5000)
 
 LIMIT = 5000
 
