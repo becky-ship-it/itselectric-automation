@@ -198,7 +198,7 @@ def main() -> None:
             else:
                 sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
-    if args.spreadsheet_id and sheet_rows:
+    if args.spreadsheet_id and creds and sheet_rows:
         try:
             existing = get_existing_hashes(
                 creds, args.spreadsheet_id, args.sheet, args.content_limit

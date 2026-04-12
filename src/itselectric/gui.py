@@ -378,7 +378,7 @@ class EmailSheetsApp(ctk.CTk):
                     else:
                         sheet_rows.append((sent_date, "", "", "", "", content, "", ""))
 
-            if spreadsheet_id and sheet_rows:
+            if spreadsheet_id and creds and sheet_rows:
                 existing = get_existing_hashes(creds, spreadsheet_id, sheet_name, content_limit)
 
                 def _hash(r):
