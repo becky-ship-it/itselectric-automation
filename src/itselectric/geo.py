@@ -58,6 +58,8 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
                     "name": (
                         f"{row['STREET'].strip()}, {row['CITY'].strip()}, {row['STATE'].strip()}"
                     ),
+                    "city": row["CITY"].strip().title(),
+                    "state": row["STATE"].strip().upper(),
                     "lat": float(lat_raw),
                     "lon": float(lon_raw),
                 }
@@ -65,17 +67,17 @@ def load_chargers(csv_path=DEFAULT_CHARGERS_CSV) -> list[dict]:
     return chargers
 
 
-def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[str, float] | None:
+def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[dict, float] | None:
     """
     Find the closest charger to (lat, lon).
 
     Args:
         lat: Latitude of the query point.
         lon: Longitude of the query point.
-        chargers: List of charger dicts, each with keys lat, lon, and name.
+        chargers: List of charger dicts, each with keys lat, lon, name, city, state.
 
     Returns:
-        A (charger_name, distance_miles) tuple with distance rounded to 2 decimal
+        A (charger_dict, distance_miles) tuple with distance rounded to 2 decimal
         places, or None if the chargers list is empty.
     """
     if not chargers:
@@ -83,7 +85,7 @@ def find_nearest_charger(lat: float, lon: float, chargers: list[dict]) -> tuple[
     point = (lat, lon)
     nearest = min(chargers, key=lambda c: geodesic(point, (c["lat"], c["lon"])).miles)
     distance = round(geodesic(point, (nearest["lat"], nearest["lon"])).miles, 2)
-    return nearest["name"], distance
+    return nearest, distance
 
 
 def _strip_unit(address: str) -> str:

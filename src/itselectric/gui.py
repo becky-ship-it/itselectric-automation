@@ -355,7 +355,9 @@ class EmailSheetsApp(ctk.CTk):
                                 lat, lon = coords
                                 result = find_nearest_charger(lat, lon, chargers)
                                 if result:
-                                    nearest_charger, distance_mi = result[0], str(result[1])
+                                    nearest_charger_dict, dist_float = result
+                                    nearest_charger = nearest_charger_dict["name"]
+                                    distance_mi = str(dist_float)
                                     print(
                                         f"  → Nearest charger: {nearest_charger} ({distance_mi} mi)"
                                     )

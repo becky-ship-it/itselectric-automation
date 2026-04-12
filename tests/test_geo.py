@@ -126,17 +126,53 @@ def test_load_chargers_default_path_exists():
     assert "name" in chargers[0]
 
 
+# ── load_chargers city/state fields ──────────────────────────────────────────
+
+
+def test_load_chargers_includes_city_and_state():
+    """load_chargers dicts include city and state fields."""
+    chargers = load_chargers()
+    assert chargers
+    first = chargers[0]
+    assert "city" in first
+    assert "state" in first
+    assert isinstance(first["city"], str)
+    assert isinstance(first["state"], str)
+
+
+def test_load_chargers_city_state_values(tmp_path):
+    """city and state are populated from CSV columns."""
+    csv_file = tmp_path / "chargers.csv"
+    csv_file.write_text(
+        "STREET,CITY,STATE,ZIPCODE,CHARGERID,NUM_OF_CHARGERS,LAT,LONG,LAT_OVERRIDE,LONG_OVERRIDE\n"
+        "11 Spring St,Newburgh,NY,12550,NBG01,1,41.496385,-74.01174,,\n"
+    )
+    chargers = load_chargers(csv_file)
+    assert chargers[0]["city"] == "Newburgh"
+    assert chargers[0]["state"] == "NY"
+
+
 # ── find_nearest_charger ──────────────────────────────────────────────────────
 
 CHARGERS = [
-    {"name": "Hub A", "lat": 40.7002, "lon": -73.9722},
-    {"name": "Hub B", "lat": 40.7282, "lon": -73.9542},
+    {"name": "Hub A", "city": "Brooklyn", "state": "NY", "lat": 40.7002, "lon": -73.9722},
+    {"name": "Hub B", "city": "Manhattan", "state": "NY", "lat": 40.7282, "lon": -73.9542},
 ]
 
 
+def test_find_nearest_charger_returns_charger_dict():
+    """find_nearest_charger returns (charger_dict, distance), not (name_str, distance)."""
+    charger_dict, dist = find_nearest_charger(40.700, -73.972, CHARGERS)
+    assert isinstance(charger_dict, dict)
+    assert charger_dict["name"] == "Hub A"
+    assert charger_dict["city"] == "Brooklyn"
+    assert charger_dict["state"] == "NY"
+    assert dist < 0.2
+
+
 def test_find_nearest_charger_returns_closest():
-    name, dist = find_nearest_charger(40.700, -73.972, CHARGERS)
-    assert name == "Hub A"
+    charger_dict, dist = find_nearest_charger(40.700, -73.972, CHARGERS)
+    assert charger_dict["name"] == "Hub A"
     assert dist < 0.2
 
 
@@ -145,7 +181,7 @@ def test_find_nearest_charger_empty_returns_none():
 
 
 def test_find_nearest_charger_returns_float_distance():
-    name, dist = find_nearest_charger(40.7135, -73.9754, CHARGERS)
+    charger_dict, dist = find_nearest_charger(40.7135, -73.9754, CHARGERS)
     assert isinstance(dist, float)
     assert dist > 0
 
