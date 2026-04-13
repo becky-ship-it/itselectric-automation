@@ -22,6 +22,7 @@ from .gmail import (
     fetch_messages,
     format_sent_date,
     get_body_from_payload,
+    get_template_images,
     load_template,
     send_email,
 )
@@ -261,7 +262,8 @@ def main() -> None:
                     print(f"  → Template '{template_name}' not found in {args.template_dir}")
                     template_name = None
             if template_name is not None:
-                sent = send_email(creds, parsed["email_1"], subject, body)
+                images = get_template_images(template_name, args.template_dir)
+                sent = send_email(creds, parsed["email_1"], subject, body, images=images or None)
                 email_status = template_name if sent else "failed"
                 print(
                     f"  → Email '{template_name}' "

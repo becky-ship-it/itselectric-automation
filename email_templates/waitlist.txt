@@ -1,7 +1,0 @@
-You're on the It's Electric waitlist!
-
-Hi {name},
-
-Thanks for your interest! We don't have a charger near {address} yet, but you're on our waitlist and we'll reach out as soon as we expand to your area.
-
-— The It's Electric Team

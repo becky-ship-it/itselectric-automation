@@ -4,6 +4,9 @@ import base64
 import os
 import re
 from datetime import datetime, timezone
+from email.message import Message
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from bs4 import BeautifulSoup
@@ -109,6 +112,23 @@ def fetch_messages(creds: Credentials, label: str, max_messages: int) -> list[di
     ]
 
 
+# Maps template name → {cid: image filename} for inline images.
+# Image files are resolved from {template_dir}/images/.
+_TEMPLATE_IMAGES: dict[str, dict[str, str]] = {
+    "tell_me_more_massachusetts": {"boston_map": "boston_full_map.png"},
+}
+
+
+def get_template_images(template_name: str, template_dir: str) -> dict[str, str]:
+    """
+    Return a CID→filepath dict for any inline images used by the given template.
+    Returns an empty dict if the template has no inline images.
+    """
+    mapping = _TEMPLATE_IMAGES.get(template_name, {})
+    images_dir = os.path.join(template_dir, "images")
+    return {cid: os.path.join(images_dir, filename) for cid, filename in mapping.items()}
+
+
 def load_template(template_name: str, template_dir: str) -> tuple[str, str]:
     """
     Load an email template by name from template_dir.
@@ -119,26 +139,53 @@ def load_template(template_name: str, template_dir: str) -> tuple[str, str]:
         Body text (may span multiple lines).
         Supports {name} and {address} substitution via str.format_map().
 
-    Returns (subject, body). Raises FileNotFoundError if the file doesn't exist.
+    Tries .html first, then .txt. Raises FileNotFoundError if neither exists.
+    Returns (subject, body).
     """
-    path = os.path.join(template_dir, f"{template_name}.txt")
-    with open(path) as f:
-        content = f.read()
-    parts = content.split("\n\n", 1)
-    subject = parts[0].strip()
-    body = parts[1].strip() if len(parts) > 1 else ""
-    return subject, body
+    for ext in (".html", ".txt"):
+        path = os.path.join(template_dir, f"{template_name}{ext}")
+        if os.path.exists(path):
+            with open(path) as f:
+                content = f.read()
+            parts = content.split("\n\n", 1)
+            subject = parts[0].strip()
+            body = parts[1].strip() if len(parts) > 1 else ""
+            return subject, body
+    raise FileNotFoundError(f"Template '{template_name}' not found in {template_dir}")
 
 
-def send_email(creds: Credentials, to_email: str, subject: str, body: str) -> bool:
+def send_email(
+    creds: Credentials,
+    to_email: str,
+    subject: str,
+    body: str,
+    images: dict[str, str] | None = None,
+) -> bool:
     """
-    Send a plain-text email via the authenticated Gmail account.
+    Send an HTML email via the authenticated Gmail account.
+
+    If images is provided, sends multipart/related with inline images embedded by CID.
+    Reference images in HTML with <img src="cid:KEY"> where KEY matches images dict keys.
 
     Returns True on success, False on error.
     """
-    message = MIMEText(body)
-    message["to"] = to_email
-    message["subject"] = subject
+    message: Message
+    if images:
+        message = MIMEMultipart("related")
+        message["to"] = to_email
+        message["subject"] = subject
+        message.attach(MIMEText(body, "html"))
+        for cid, filepath in images.items():
+            with open(filepath, "rb") as f:
+                img = MIMEImage(f.read())
+            img.add_header("Content-ID", f"<{cid}>")
+            img.add_header("Content-Disposition", "inline", filename=os.path.basename(filepath))
+            message.attach(img)
+    else:
+        message = MIMEText(body, "html")
+        message["to"] = to_email
+        message["subject"] = subject
+
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
     service = build("gmail", "v1", credentials=creds)

@@ -189,6 +189,21 @@ class TestLoadTemplate:
         _, body = load_template("t", str(tmp_path))
         assert body == "Line 1\nLine 2"
 
+    def test_loads_html_template(self, tmp_path):
+        (tmp_path / "welcome.html").write_text(
+            "Welcome!\n\n<p>Hi {name}</p>"
+        )
+        subject, body = load_template("welcome", str(tmp_path))
+        assert subject == "Welcome!"
+        assert body == "<p>Hi {name}</p>"
+
+    def test_html_takes_priority_over_txt(self, tmp_path):
+        (tmp_path / "t.html").write_text("HTML Subject\n\n<p>html body</p>")
+        (tmp_path / "t.txt").write_text("TXT Subject\n\ntxt body")
+        subject, body = load_template("t", str(tmp_path))
+        assert subject == "HTML Subject"
+        assert "<p>" in body
+
 
 # ── send_email ─────────────────────────────────────────────────────────────────
 
@@ -226,11 +241,29 @@ class TestSendEmail:
         svc.users().messages().send = capture
 
         with patch("itselectric.gmail.build", return_value=svc):
-            send_email(creds, "driver@example.com", "Hello", "Body text")
+            send_email(creds, "driver@example.com", "Hello", "<p>Body</p>")
 
         raw = base64.urlsafe_b64decode(captured["body"]["raw"])
         msg = email_lib.message_from_bytes(raw)
         assert msg["to"] == "driver@example.com"
+
+    def test_sends_html_content_type(self):
+        creds = MagicMock()
+        captured = {}
+        svc = self._mock_service()
+
+        original_send = svc.users().messages().send
+        def capture(**kwargs):
+            captured.update(kwargs)
+            return original_send()
+        svc.users().messages().send = capture
+
+        with patch("itselectric.gmail.build", return_value=svc):
+            send_email(creds, "x@example.com", "Subject", "<p>Hello</p>")
+
+        raw = base64.urlsafe_b64decode(captured["body"]["raw"])
+        msg = email_lib.message_from_bytes(raw)
+        assert msg.get_content_type() == "text/html"
 
     def test_subject_in_message(self):
         creds = MagicMock()
@@ -249,3 +282,33 @@ class TestSendEmail:
         raw = base64.urlsafe_b64decode(captured["body"]["raw"])
         msg = email_lib.message_from_bytes(raw)
         assert msg["subject"] == "My Subject"
+
+    def test_html_with_images_is_multipart_related(self, tmp_path):
+        img_file = tmp_path / "logo.png"
+        img_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8)  # minimal PNG-like bytes
+
+        creds = MagicMock()
+        captured = {}
+        svc = self._mock_service()
+
+        original_send = svc.users().messages().send
+        def capture(**kwargs):
+            captured.update(kwargs)
+            return original_send()
+        svc.users().messages().send = capture
+
+        with patch("itselectric.gmail.build", return_value=svc):
+            send_email(
+                creds,
+                "x@example.com",
+                "Subject",
+                '<p>Hi</p><img src="cid:logo">',
+                images={"logo": str(img_file)},
+            )
+
+        raw = base64.urlsafe_b64decode(captured["body"]["raw"])
+        msg = email_lib.message_from_bytes(raw)
+        assert msg.get_content_type() == "multipart/related"
+        payloads = msg.get_payload()
+        assert any(p.get_content_type() == "text/html" for p in payloads)
+        assert any(p.get("Content-ID") == "<logo>" for p in payloads)

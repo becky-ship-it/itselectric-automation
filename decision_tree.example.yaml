@@ -1,12 +1,12 @@
 # Email routing decision tree for itselectric-automation.
-# Copy this file to decision_tree.yaml and adjust template names to match
-# the .txt files in your template_dir.
+# This file is the canonical example tree used by tests.
+# Copy to decision_tree.yaml to use in production (clients may customize decision_tree.yaml freely).
 #
 # HOW IT WORKS
 # ------------
 # Each node is either a leaf or a branch.
 #
-# Leaf:   template: general_car_info   # sends email_templates/general_car_info.txt
+# Leaf:   template: general_car_info   # sends email_templates/general_car_info.html
 #         template: null               # sends nothing (opt out of routing)
 #
 # Branch: condition:
@@ -21,42 +21,150 @@
 #
 # IMPORTANT: use "then"/"else" — NOT "yes"/"no". PyYAML parses bare yes/no as
 # booleans, which will cause a runtime KeyError.
-#
-# EXAMPLE TREE
-# ------------
-# Scenario outcomes:
-#   Utah driver, 150 mi from Denver charger      → waitlist
-#   LA driver, 15 mi from LA charger             → california_car_info
-#   Dallas TX driver, 99 mi from Waco charger    → general_car_info
 
 condition:
   field: distance_miles
-  op: lt
+  op: lte
   value: 0.5
 then:
-  template: general_car_info   # driver is already right next to a charger
+  template: general_car_info   # Get General Car Info — driver is already right next to a charger
 else:
   condition:
     field: distance_miles
-    op: lt
+    op: gt
     value: 100
   then:
+    template: waitlist       # Waitlist — more than 100 miles from nearest charger
+  else:
     condition:
       field: driver_state
-      op: eq
-      value: CA
+      op: in
+      value: [CA, MA, DC, NY, MI]  # prioritize drivers from states with existing chargers
     then:
+      ############################
+      # California driver decision tree
+      ############################
       condition:
-        field: charger_city
-        op: in
-        value:
-          - Los Angeles
-          - San Francisco
+        field: charger_state
+        op: eq
+        value: CA
       then:
-        template: california_car_info
+        condition:
+          field: charger_city
+          op: in
+          value:
+            - Los Angeles
+            - Alemeda
+        then:
+          condition:
+            field: distance_miles
+            op: lte
+            value: 10
+          then:
+            template: tell_me_more_general  # Tell Me More — CA driver near an LA/Alemeda charger
+          else:
+            template: waitlist  # Waitlist — CA driver but not near an LA/Alemeda charger
+        else:
+          condition:
+            field: charger_city
+            op: eq
+            value: San Francisco
+          then:
+            template: waitlist  # Waitlist — SF charger is already at capacity
+          else:
+            template: waitlist  # Waitlist — CA driver but not near an LA/Alemeda/SF charger
+      #############################
+      # END California driver tree
+      #############################
       else:
-        template: waitlist       # CA driver but not near an LA/SF charger
+        ##############################
+        # Massachusetts driver decision tree
+        ##############################
+        condition:
+          field: charger_state
+          op: eq
+          value: MA
+        then:
+          condition:
+            field: driver_state
+            op: eq
+            value: MA
+          then:
+            template: tell_me_more_massachusetts  # Tell Me More — MA driver near an MA charger
+          else:
+            template: waitlist  # Waitlist — Close to MA charger but driver is from a different state
+        ###############################
+        # END Massachusetts driver tree
+        ###############################
+        else:
+          ###############################
+          # DC driver decision tree
+          ###############################
+          condition:
+            field: charger_state
+            op: eq
+            value: DC
+          then:
+            template: tell_me_more_dc  # Tell Me More — driver near a DC charger
+          ################################
+          # END DC driver tree
+          ################################
+          else:
+            ##############################
+            # NY driver decision tree
+            ##############################
+            condition:
+              field: charger_state
+              op: eq
+              value: NY
+            then:
+              condition:
+                field: charger_city
+                op: eq
+                value: Brooklyn
+              then:
+                condition:
+                  field: distance_miles
+                  op: lte
+                  value: 5
+                then:
+                  template: tell_me_more_brooklyn  # Tell Me More — driver near the Brooklyn charger
+                else:
+                  template: waitlist  # Waitlist — driver too far from the Brooklyn charger
+              else:
+                condition:
+                  field: charger_city
+                  op: eq
+                  value: Newburgh
+                then:
+                  condition:
+                    field: distance_miles
+                    op: lte
+                    value: 10
+                  then:
+                    template: tell_me_more_general  # Tell Me More — driver near the Newburgh charger
+                  else:
+                    template: waitlist  # Waitlist — driver too far from the Newburgh charger
+                else:
+                  template: waitlist  # Waitlist — not near a Brooklyn or Newburgh charger
+            ##############################
+            # END NY driver tree
+            ##############################
+            else:
+              ###############################
+              # Michigan driver decision tree
+              ###############################
+              # Michigan should be the last branch in the allowed states, so I am just checking the distance
+              condition:
+                field: distance_miles
+                op: lte
+                value: 10
+              then:
+                template: tell_me_more_general  # Tell Me More — MI driver near an MI charger
+              else:
+                template: waitlist  # Waitlist — MI driver but not near an MI charger
+              ##############################
+              # END Michigan driver tree
+              ##############################
     else:
-      template: general_car_info # within range but outside CA
-  else:
-    template: waitlist           # more than 100 miles from nearest charger
+      template: waitlist     # Waitlist — within range but outside priority states

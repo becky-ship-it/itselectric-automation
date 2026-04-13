@@ -270,6 +270,7 @@ class EmailSheetsApp(ctk.CTk):
                 fetch_messages,
                 format_sent_date,
                 get_body_from_payload,
+                get_template_images,
                 load_template,
                 send_email,
             )
@@ -420,7 +421,8 @@ class EmailSheetsApp(ctk.CTk):
                             )
                             template_name = None
                     if template_name is not None:
-                        sent = send_email(creds, parsed["email_1"], subject, body)
+                        images = get_template_images(template_name, template_dir)
+                        sent = send_email(creds, parsed["email_1"], subject, body, images=images or None)
                         email_status = template_name if sent else "failed"
                         print(
                             f"  → Email '{template_name}' "

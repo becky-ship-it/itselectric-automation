@@ -18,19 +18,38 @@ import json
 from pathlib import Path
 
 import pytest  # type: ignore
+import yaml  # type: ignore
 
+from itselectric.cli import _build_tree_context  # type: ignore
+from itselectric.decision_tree import evaluate
 from itselectric.extract import extract_parsed
 from itselectric.fixture import load_fixture_messages
 from itselectric.geo import find_nearest_charger, geocode_address, load_chargers
 from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "emails"
+TREE_PATH = Path(__file__).parent.parent / "decision_tree.example.yaml"
 
-# Pre-populated cache entries for the addresses in the fixture files.
-# These coordinates are real: 19 Morris Ave and 15 Washington St are in Brooklyn.
+# Pre-populated cache entries for all fixture addresses.
+# Coordinates are chosen to produce the expected routing outcome (see comments).
 GEOCACHE = {
+    # 01 / 02 — Brooklyn addresses at/near charger coords → general_car_info (distance <= 0.5)
     "19 Morris Ave, Brooklyn, NY 11205": [40.698863, -73.975029],
     "15 Washington St., Brooklyn, NY 11205": [40.700122, -73.967773],
+    # 04 — Boston MA, ~1.2 mi from nearest Boston charger → tell_me_more_massachusetts
+    "1 Cambridge St, Boston, MA 02114": [42.358, -71.064],
+    # 05 — Washington DC, ~1.5 mi from DC charger → tell_me_more_dc
+    "1100 16th St NW, Washington, DC 20036": [38.903, -77.036],
+    # 06 — Los Angeles CA, ~1.3 mi from LA charger, distance <= 10 → tell_me_more_general
+    "123 N Vermont Ave, Los Angeles, CA 90004": [34.078, -118.291],
+    # 07 — Brooklyn NY, ~0.75 mi from Brooklyn charger, distance <= 5 → tell_me_more_brooklyn
+    "1 Atlantic Ave, Brooklyn, NY 11201": [40.693, -73.993],
+    # 08 — Detroit MI, ~1.0 mi from Detroit charger, distance <= 10 → tell_me_more_general
+    "1 Woodward Ave, Detroit, MI 48226": [42.330, -83.044],
+    # 09 — Chicago IL, ~240 mi from nearest charger → waitlist (distance > 100)
+    "100 N Michigan Ave, Chicago, IL 60601": [41.882, -87.624],
+    # 10 — Hoboken NJ, ~3.5 mi from Brooklyn charger, NJ not in priority states → waitlist
+    "100 Washington St, Hoboken, NJ 07030": [40.745, -74.028],
 }
 
 
@@ -51,7 +70,7 @@ def chargers():
 class TestFullPipeline:
     def test_loads_correct_number_of_messages(self):
         messages = load_fixture_messages(FIXTURES_DIR)
-        assert len(messages) == 3
+        assert len(messages) == 10
 
     def test_parsed_messages_extract_correctly(self, geocache_file, chargers):
         """Parsed fixture emails produce correct name/address/email fields."""
@@ -66,7 +85,7 @@ class TestFullPipeline:
             if parsed:
                 parsed_rows.append(parsed)
 
-        assert len(parsed_rows) == 2
+        assert len(parsed_rows) == 9  # all fixtures except 03_unparsed
         names = {r["name"] for r in parsed_rows}
         assert "Jane Smith" in names
         assert "Bob Jones" in names
@@ -137,10 +156,10 @@ class TestFullPipeline:
             else:
                 rows.append((sent_date, "", "", "", "", plain, "", ""))
 
-        assert len(rows) == 3
+        assert len(rows) == 10
         # Parsed rows have real names
         parsed_rows = [r for r in rows if r[1]]
-        assert len(parsed_rows) == 2
+        assert len(parsed_rows) == 9
         # Geo columns are populated for parsed rows
         for row in parsed_rows:
             assert row[6] != "", f"Expected nearest_charger to be set, got: {row}"
@@ -163,3 +182,59 @@ class TestFullPipeline:
                     upsert_contact(token, parsed["name"], parsed["email_1"], parsed["address"])
 
         mock_post.assert_not_called()
+
+
+class TestDecisionTreeRouting:
+    """Full pipeline: fixture email → extract → geo → decision tree → expected template."""
+
+    # Maps fixture address → expected template name (None = unparsed, skip routing).
+    _EXPECTED: dict[str, str | None] = {
+        "19 Morris Ave, Brooklyn, NY 11205": "general_car_info",
+        "15 Washington St., Brooklyn, NY 11205": "general_car_info",
+        "1 Cambridge St, Boston, MA 02114": "tell_me_more_massachusetts",
+        "1100 16th St NW, Washington, DC 20036": "tell_me_more_dc",
+        "123 N Vermont Ave, Los Angeles, CA 90004": "tell_me_more_general",
+        "1 Atlantic Ave, Brooklyn, NY 11201": "tell_me_more_brooklyn",
+        "1 Woodward Ave, Detroit, MI 48226": "tell_me_more_general",
+        "100 N Michigan Ave, Chicago, IL 60601": "waitlist",
+        "100 Washington St, Hoboken, NJ 07030": "waitlist",
+    }
+
+    @pytest.fixture(autouse=True)
+    def setup(self, geocache_file, chargers):
+        self.geocache_file = geocache_file
+        self.chargers = chargers
+        with open(TREE_PATH) as f:
+            self.tree = yaml.safe_load(f)
+
+    def test_all_fixtures_route_to_expected_template(self):
+        messages = load_fixture_messages(FIXTURES_DIR)
+        results = {}
+
+        for msg in messages:
+            mime, body_text = get_body_from_payload(msg.get("payload", {}))
+            plain = body_to_plain(mime, body_text)
+            parsed = extract_parsed(plain)
+            if not parsed:
+                continue
+
+            coords = geocode_address(parsed["address"], cache_path=self.geocache_file)
+            if not coords:
+                continue
+
+            result = find_nearest_charger(*coords, self.chargers)
+            if not result:
+                continue
+
+            charger_dict, dist = result
+            ctx = _build_tree_context(
+                address=parsed["address"],
+                charger_dict=charger_dict,
+                distance_miles=dist,
+            )
+            results[parsed["address"]] = evaluate(self.tree, ctx)
+
+        for address, expected in self._EXPECTED.items():
+            assert results[address] == expected, (
+                f"{address!r}: expected {expected!r}, got {results.get(address)!r}"
+            )
