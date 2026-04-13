@@ -459,6 +459,7 @@ dependencies = [
     { name = "google-auth-httplib2" },
     { name = "google-auth-oauthlib" },
     { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -481,6 +482,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", specifier = ">=2.31.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
 ]
