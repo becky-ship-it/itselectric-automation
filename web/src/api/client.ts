@@ -49,13 +49,13 @@ export interface ImportPreview {
 export interface Template {
   name: string
   subject: string | null
-  body_html: string | null
+  body_md: string | null
   updated_at: string | null
 }
 
 export interface TemplateIn {
   subject: string
-  body_html: string
+  body_md: string
 }
 
 export interface DecisionTreeTestResult {
