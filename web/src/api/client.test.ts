@@ -8,6 +8,11 @@ import {
   skipContact,
   previewImport,
   confirmImport,
+  listTemplates,
+  updateTemplate,
+  getDecisionTree,
+  updateDecisionTree,
+  testDecisionTree,
 } from './client'
 
 function mockFetch(data: unknown, status = 200) {
@@ -124,6 +129,75 @@ describe('confirmImport', () => {
     expect(result.ok).toBe(true)
     expect(fetch).toHaveBeenCalledWith(
       '/api/import/snapshot/confirm/abc',
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+})
+
+describe('listTemplates', () => {
+  it('GETs /api/templates and returns array', async () => {
+    mockFetch([{ name: 'general_car_info', subject: 'Hi', body_html: '<p>Hi</p>', updated_at: null }])
+    const result = await listTemplates()
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('general_car_info')
+    expect(fetch).toHaveBeenCalledWith('/api/templates')
+  })
+})
+
+describe('updateTemplate', () => {
+  it('PUTs to /api/templates/{name} with subject and body_html', async () => {
+    mockFetch({ name: 'general_car_info', subject: 'Updated', body_html: '<p>New</p>', updated_at: null })
+    const result = await updateTemplate('general_car_info', { subject: 'Updated', body_html: '<p>New</p>' })
+    expect(result.name).toBe('general_car_info')
+    expect(result.subject).toBe('Updated')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/templates/general_car_info',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      })
+    )
+  })
+})
+
+describe('getDecisionTree', () => {
+  it('GETs /api/decision-tree', async () => {
+    mockFetch({ condition: { field: 'distance_miles', op: 'lte', value: 5 }, then: { template: 'close' }, else: { template: 'far' } })
+    const result = await getDecisionTree()
+    expect(result).not.toBeNull()
+    expect(fetch).toHaveBeenCalledWith('/api/decision-tree')
+  })
+
+  it('returns null when tree not set', async () => {
+    mockFetch(null)
+    const result = await getDecisionTree()
+    expect(result).toBeNull()
+  })
+})
+
+describe('updateDecisionTree', () => {
+  it('PUTs to /api/decision-tree with JSON body', async () => {
+    const tree = { condition: { field: 'distance_miles', op: 'lte', value: 5 }, then: { template: 'close' }, else: { template: 'far' } }
+    mockFetch(tree)
+    await updateDecisionTree(tree)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/decision-tree',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      })
+    )
+  })
+})
+
+describe('testDecisionTree', () => {
+  it('POSTs to /api/decision-tree/test and returns results', async () => {
+    mockFetch({ results: [{ id: 'msg1', name: 'Alice', address: '123 Main', parsed: true, template: 'general_car_info' }] })
+    const result = await testDecisionTree()
+    expect(result.results).toHaveLength(1)
+    expect(result.results[0].template).toBe('general_car_info')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/decision-tree/test',
       expect.objectContaining({ method: 'POST' })
     )
   })

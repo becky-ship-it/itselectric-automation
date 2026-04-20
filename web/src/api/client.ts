@@ -46,6 +46,31 @@ export interface ImportPreview {
   }
 }
 
+export interface Template {
+  name: string
+  subject: string | null
+  body_html: string | null
+  updated_at: string | null
+}
+
+export interface TemplateIn {
+  subject: string
+  body_html: string
+}
+
+export interface DecisionTreeTestResult {
+  id: string
+  name?: string | null
+  address?: string | null
+  parsed: boolean
+  template: string | null
+}
+
+export interface DecisionTreeTestResponse {
+  results: DecisionTreeTestResult[]
+  error?: string
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = init ? await fetch(url, init) : await fetch(url)
   if (!resp.ok) {
@@ -95,4 +120,32 @@ export function previewImport(snapshot: unknown): Promise<ImportPreview> {
 
 export function confirmImport(importId: string): Promise<{ ok: boolean }> {
   return request(`/api/import/snapshot/confirm/${importId}`, { method: 'POST' })
+}
+
+export function listTemplates(): Promise<Template[]> {
+  return request('/api/templates')
+}
+
+export function updateTemplate(name: string, body: TemplateIn): Promise<Template> {
+  return request(`/api/templates/${name}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+export function getDecisionTree(): Promise<unknown> {
+  return request('/api/decision-tree')
+}
+
+export function updateDecisionTree(tree: unknown): Promise<unknown> {
+  return request('/api/decision-tree', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tree),
+  })
+}
+
+export function testDecisionTree(): Promise<DecisionTreeTestResponse> {
+  return request('/api/decision-tree/test', { method: 'POST' })
 }
