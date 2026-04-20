@@ -18,6 +18,9 @@ export default function Config() {
   const [tmplSaved, setTmplSaved] = useState(false)
   const [tmplError, setTmplError] = useState<string | null>(null)
 
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
   const [treeYaml, setTreeYaml] = useState('')
   const [treeSaving, setTreeSaving] = useState(false)
   const [treeSaved, setTreeSaved] = useState(false)
@@ -26,10 +29,13 @@ export default function Config() {
   const [testResults, setTestResults] = useState<DecisionTreeTestResult[] | null>(null)
 
   useEffect(() => {
-    listTemplates().then(setTemplates)
-    getDecisionTree().then((tree) => {
-      if (tree) setTreeYaml(yaml.dump(tree))
-    })
+    Promise.all([listTemplates(), getDecisionTree()])
+      .then(([tmpls, tree]) => {
+        setTemplates(tmpls as Template[])
+        if (tree) setTreeYaml(yaml.dump(tree))
+      })
+      .catch(() => setLoadError('Failed to load config. Is the server running?'))
+      .finally(() => setLoading(false))
   }, [])
 
   function selectTemplate(name: string) {
@@ -93,7 +99,11 @@ export default function Config() {
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Templates</h2>
         <div className="flex border border-gray-200 rounded-lg overflow-hidden min-h-64">
           <div className="w-52 shrink-0 border-r border-gray-200 overflow-y-auto">
-            {templates.length === 0 ? (
+            {loading ? (
+              <div className="p-3 text-sm text-gray-400">Loading…</div>
+            ) : loadError ? (
+              <div className="p-3 text-sm text-red-600">{loadError}</div>
+            ) : templates.length === 0 ? (
               <div className="p-3 text-sm text-gray-400">No templates.</div>
             ) : (
               templates.map((t) => (
@@ -214,8 +224,8 @@ export default function Config() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {testResults.map((r, i) => (
-                    <tr key={i}>
+                  {testResults.map((r) => (
+                    <tr key={r.id}>
                       <td className="px-4 py-3 text-gray-900">{r.name ?? '(unparsed)'}</td>
                       <td className="px-4 py-3 text-gray-600 max-w-xs truncate">{r.address ?? '—'}</td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{r.template ?? '—'}</td>

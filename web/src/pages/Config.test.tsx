@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import Config from './Config'
@@ -73,4 +73,22 @@ test('clicking Test calls testDecisionTree and shows results table', async () =>
   await userEvent.click(screen.getByRole('button', { name: /test/i }))
   expect(await screen.findByText('Alice Smith')).toBeInTheDocument()
   expect(screen.getAllByText('general_car_info').length).toBeGreaterThan(0)
+})
+
+test('invalid YAML shows parse error on decision tree save', async () => {
+  render(<Config />)
+  const textarea = await screen.findByRole('textbox', { name: /decision tree yaml/i })
+  fireEvent.change(textarea, { target: { value: ': missing_key' } })
+  await userEvent.click(screen.getByRole('button', { name: /save decision tree/i }))
+  expect(await screen.findByText(/YAMLException/)).toBeInTheDocument()
+})
+
+test('API failure on save template shows error message', async () => {
+  const { updateTemplate } = await import('../api/client')
+  vi.mocked(updateTemplate).mockRejectedValueOnce(new Error('500 Internal Server Error'))
+  render(<Config />)
+  await screen.findByRole('button', { name: 'general_car_info' })
+  await userEvent.click(screen.getByRole('button', { name: 'general_car_info' }))
+  await userEvent.click(screen.getByRole('button', { name: /save template/i }))
+  expect(await screen.findByText(/500 Internal Server Error/i)).toBeInTheDocument()
 })
