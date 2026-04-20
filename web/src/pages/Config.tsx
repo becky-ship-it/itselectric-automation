@@ -9,6 +9,8 @@ import {
   testDecisionTree,
 } from '../api/client'
 import type { Template, DecisionTreeTestResult } from '../api/client'
+import TreeNodeEditor from '../components/TreeNodeEditor'
+import type { TreeNode } from '../components/TreeNodeEditor'
 
 export default function Config() {
   const [templates, setTemplates] = useState<Template[]>([])
@@ -22,7 +24,10 @@ export default function Config() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const [tree, setTree] = useState<TreeNode | null>(null)
   const [treeYaml, setTreeYaml] = useState('')
+  const [yamlError, setYamlError] = useState<string | null>(null)
+  const [yamlExpanded, setYamlExpanded] = useState(false)
   const [treeSaving, setTreeSaving] = useState(false)
   const [treeSaved, setTreeSaved] = useState(false)
   const [treeTesting, setTreeTesting] = useState(false)
@@ -31,9 +36,12 @@ export default function Config() {
 
   useEffect(() => {
     Promise.all([listTemplates(), getDecisionTree()])
-      .then(([tmpls, tree]) => {
+      .then(([tmpls, rawTree]) => {
         setTemplates(tmpls as Template[])
-        if (tree) setTreeYaml(yaml.dump(tree))
+        if (rawTree && typeof rawTree === 'object') {
+          setTree(rawTree as TreeNode)
+          setTreeYaml(yaml.dump(rawTree))
+        }
       })
       .catch(() => setLoadError('Failed to load config. Is the server running?'))
       .finally(() => setLoading(false))
@@ -47,6 +55,27 @@ export default function Config() {
     setBodyMd(t.body_md ?? '')
     setTmplSaved(false)
     setTmplError(null)
+  }
+
+  function handleTreeChange(newTree: TreeNode) {
+    setTree(newTree)
+    setTreeYaml(yaml.dump(newTree))
+    setYamlError(null)
+    setTreeSaved(false)
+  }
+
+  function handleYamlChange(newYaml: string) {
+    setTreeYaml(newYaml)
+    setTreeSaved(false)
+    try {
+      const parsed = yaml.load(newYaml)
+      if (parsed && typeof parsed === 'object') {
+        setTree(parsed as TreeNode)
+        setYamlError(null)
+      }
+    } catch (err) {
+      setYamlError(String(err))
+    }
   }
 
   async function handleSaveTemplate() {
@@ -65,10 +94,10 @@ export default function Config() {
   }
 
   async function handleSaveTree() {
+    if (!tree) return
     setTreeSaving(true)
     setTreeError(null)
     try {
-      const tree = yaml.load(treeYaml)
       await updateDecisionTree(tree as Record<string, unknown>)
       setTreeSaved(true)
     } catch (err) {
@@ -179,20 +208,35 @@ export default function Config() {
 
       <section>
         <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Decision Tree</h2>
-        <div className="space-y-3">
-          <textarea
-            aria-label="Decision tree YAML"
-            value={treeYaml}
-            onChange={(e) => { setTreeYaml(e.target.value); setTreeSaved(false) }}
-            rows={18}
-            className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          />
+        <div className="space-y-4">
+          {/* Visual editor */}
+          <div className="p-4 border border-gray-200 rounded-lg min-h-24">
+            {tree ? (
+              <TreeNodeEditor
+                node={tree}
+                onChange={handleTreeChange}
+                templates={templates.map((t) => t.name)}
+              />
+            ) : (
+              <button
+                onClick={() => handleTreeChange({
+                  condition: { field: 'distance_miles', op: 'lte', value: '' },
+                  then: { template: '' },
+                  else: { template: '' },
+                })}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                + Add root node
+              </button>
+            )}
+          </div>
+
+          {/* Action buttons */}
           <div className="flex items-center gap-3">
             <button
               aria-label="Save decision tree"
               onClick={() => void handleSaveTree()}
-              disabled={treeSaving}
+              disabled={treeSaving || !tree}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium
                          hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
@@ -210,6 +254,32 @@ export default function Config() {
             {treeError && <span className="text-sm text-red-600">{treeError}</span>}
           </div>
 
+          {/* Advanced YAML panel */}
+          <div>
+            <button
+              aria-expanded={yamlExpanded}
+              onClick={() => setYamlExpanded((v) => !v)}
+              className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            >
+              <span>{yamlExpanded ? '▼' : '▶'}</span>
+              <span>Advanced (YAML)</span>
+            </button>
+            {yamlExpanded && (
+              <div className="mt-2 space-y-1">
+                <textarea
+                  aria-label="Decision tree YAML"
+                  value={treeYaml}
+                  onChange={(e) => handleYamlChange(e.target.value)}
+                  rows={12}
+                  className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                />
+                {yamlError && <p className="text-xs text-red-600">{yamlError}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Test results table */}
           {testResults !== null && (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
