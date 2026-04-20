@@ -20,7 +20,7 @@ class ChargerOut(BaseModel):
 class TemplateOut(BaseModel):
     name: str
     subject: str
-    body_html: str
+    body_md: str
     updated_at: datetime
 
     model_config = {"from_attributes": True}
@@ -28,7 +28,7 @@ class TemplateOut(BaseModel):
 
 class TemplateIn(BaseModel):
     subject: str
-    body_html: str
+    body_md: str
 
 
 class ContactOut(BaseModel):

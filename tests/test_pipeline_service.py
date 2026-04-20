@@ -21,7 +21,7 @@ def db_session():
     factory = sessionmaker(bind=engine)
     session = factory()
     session.add(Charger(street="1 Main St", city="Brooklyn", state="NY", lat=40.6943, lon=-73.9249))
-    session.add(Template(name="tell_me_more_general", subject="Hi!", body_html="<p>Hi {name}</p>"))
+    session.add(Template(name="tell_me_more_general", subject="Hi!", body_md="<p>Hi {name}</p>"))
     session.commit()
     yield session
     session.close()

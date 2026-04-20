@@ -78,7 +78,7 @@ def export_snapshot(db: DbDep):
             for c in db.query(Charger).all()
         ],
         "templates": [
-            {"name": t.name, "subject": t.subject, "body_html": t.body_html}
+            {"name": t.name, "subject": t.subject, "body_md": t.body_md}
             for t in db.query(Template).all()
         ],
         "geocache": [
@@ -200,7 +200,7 @@ def import_snapshot_confirm(import_id: str, db: DbDep):
                 Template(
                     name=t["name"],
                     subject=t.get("subject", ""),
-                    body_html=t.get("body_html", ""),
+                    body_md=t.get("body_md", ""),
                 )
             )
 

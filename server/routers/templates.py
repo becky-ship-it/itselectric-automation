@@ -47,7 +47,7 @@ def create_template(name: str, body: TemplateIn, db: DbDep):
     tmpl = Template(
         name=name,
         subject=body.subject,
-        body_html=body.body_html,
+        body_md=body.body_md,
         updated_at=datetime.now(timezone.utc),
     )
     db.add(tmpl)
@@ -62,7 +62,7 @@ def update_template(name: str, body: TemplateIn, db: DbDep):
     if not tmpl:
         raise HTTPException(status_code=404, detail="Template not found")
     tmpl.subject = body.subject
-    tmpl.body_html = body.body_html
+    tmpl.body_md = body.body_md
     tmpl.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(tmpl)

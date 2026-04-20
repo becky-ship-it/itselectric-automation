@@ -102,7 +102,7 @@ def seed_templates_from_yaml(session: Session, yaml_path: str) -> int:
     for name in sorted(names):
         if session.query(Template).filter_by(name=name).first():
             continue
-        session.add(Template(name=name, subject="", body_html=""))
+        session.add(Template(name=name, subject="", body_md=""))
         count += 1
     session.flush()
     return count

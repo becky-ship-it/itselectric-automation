@@ -76,7 +76,8 @@ class Template(Base):
 
     name: Mapped[str] = mapped_column(String, primary_key=True)
     subject: Mapped[str] = mapped_column(String, default="")
-    body_html: Mapped[str] = mapped_column(Text, default="")
+    # Column name kept as 'body_html' in DB to avoid a schema migration
+    body_md: Mapped[str] = mapped_column("body_html", Text, default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

@@ -78,7 +78,7 @@ def test_seed_templates_from_yaml_creates_rows(session, tmp_path):
 
 
 def test_seed_templates_does_not_overwrite_existing(session, tmp_path):
-    session.add(Template(name="tell_me_more_general", subject="Existing", body_html="<p>keep</p>"))
+    session.add(Template(name="tell_me_more_general", subject="Existing", body_md="<p>keep</p>"))
     session.commit()
     tree_yaml = tmp_path / "tree.yaml"
     tree_yaml.write_text(

@@ -159,7 +159,7 @@ def run_pipeline(
             if template_name:
                 tmpl = session.query(Template).filter_by(name=template_name).first()
                 subject = tmpl.subject if tmpl else ""
-                body = tmpl.body_html if tmpl else ""
+                body = tmpl.body_md if tmpl else ""
                 try:
                     body = body.format_map(
                         {
