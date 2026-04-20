@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import yaml from 'js-yaml'
+import { marked } from 'marked'
 import {
   listTemplates,
   updateTemplate,
@@ -13,7 +14,7 @@ export default function Config() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [subject, setSubject] = useState('')
-  const [bodyHtml, setBodyHtml] = useState('')
+  const [bodyMd, setBodyMd] = useState('')
   const [tmplSaving, setTmplSaving] = useState(false)
   const [tmplSaved, setTmplSaved] = useState(false)
   const [tmplError, setTmplError] = useState<string | null>(null)
@@ -43,7 +44,7 @@ export default function Config() {
     if (!t) return
     setSelectedName(name)
     setSubject(t.subject ?? '')
-    setBodyHtml(t.body_html ?? '')
+    setBodyMd(t.body_md ?? '')
     setTmplSaved(false)
     setTmplError(null)
   }
@@ -53,7 +54,7 @@ export default function Config() {
     setTmplSaving(true)
     setTmplError(null)
     try {
-      const updated = await updateTemplate(selectedName, { subject, body_html: bodyHtml })
+      const updated = await updateTemplate(selectedName, { subject, body_md: bodyMd })
       setTemplates((ts) => ts.map((t) => (t.name === selectedName ? updated : t)))
       setTmplSaved(true)
     } catch (err) {
@@ -138,19 +139,20 @@ export default function Config() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Body HTML</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Body (Markdown)</label>
                   <textarea
-                    value={bodyHtml}
-                    onChange={(e) => { setBodyHtml(e.target.value); setTmplSaved(false) }}
+                    value={bodyMd}
+                    onChange={(e) => { setBodyMd(e.target.value); setTmplSaved(false) }}
                     rows={8}
                     className="w-full px-3 py-1.5 text-sm font-mono border border-gray-300 rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    placeholder="Write email body in Markdown. **Bold**, *italic*, [links](url)."
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Preview</label>
                   <iframe
-                    srcDoc={bodyHtml}
+                    srcDoc={marked(bodyMd) as string}
                     sandbox=""
                     title="Template preview"
                     className="w-full h-48 border border-gray-200 rounded-lg bg-white"
