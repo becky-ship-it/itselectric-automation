@@ -5,11 +5,11 @@ import Config from './Config'
 
 vi.mock('../api/client', () => ({
   listTemplates: vi.fn().mockResolvedValue([
-    { name: 'general_car_info', subject: 'Hello!', body_html: '<p>Hi there</p>', updated_at: '2026-04-20T10:00:00Z' },
-    { name: 'waitlist', subject: 'Join the waitlist', body_html: '<p>Waitlist</p>', updated_at: '2026-04-20T10:00:00Z' },
+    { name: 'general_car_info', subject: 'Hello!', body_md: '**Hi there**', updated_at: '2026-04-20T10:00:00Z' },
+    { name: 'waitlist', subject: 'Join the waitlist', body_md: 'You are on the **waitlist**.', updated_at: '2026-04-20T10:00:00Z' },
   ]),
-  updateTemplate: vi.fn().mockImplementation((name: string, body: { subject: string; body_html: string }) =>
-    Promise.resolve({ name, subject: body.subject, body_html: body.body_html, updated_at: new Date().toISOString() })
+  updateTemplate: vi.fn().mockImplementation((name: string, body: { subject: string; body_md: string }) =>
+    Promise.resolve({ name, subject: body.subject, body_md: body.body_md, updated_at: new Date().toISOString() })
   ),
   getDecisionTree: vi.fn().mockResolvedValue(null),
   updateDecisionTree: vi.fn().mockResolvedValue({}),
@@ -32,7 +32,7 @@ test('clicking template shows subject and body in editor', async () => {
   await screen.findByRole('button', { name: 'general_car_info' })
   await userEvent.click(screen.getByRole('button', { name: 'general_car_info' }))
   expect(screen.getByDisplayValue('Hello!')).toBeInTheDocument()
-  expect(screen.getByDisplayValue('<p>Hi there</p>')).toBeInTheDocument()
+  expect(screen.getByDisplayValue('**Hi there**')).toBeInTheDocument()
 })
 
 test('saving template calls updateTemplate and shows Saved feedback', async () => {
