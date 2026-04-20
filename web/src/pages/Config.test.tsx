@@ -21,6 +21,10 @@ vi.mock('../api/client', () => ({
   }),
 }))
 
+async function openYamlPanel() {
+  await userEvent.click(screen.getByRole('button', { name: /advanced/i }))
+}
+
 test('shows template names after load', async () => {
   render(<Config />)
   expect(await screen.findByRole('button', { name: 'general_car_info' })).toBeInTheDocument()
@@ -53,14 +57,18 @@ test('saving template calls updateTemplate and shows Saved feedback', async () =
 
 test('decision tree YAML textarea is empty when no tree saved', async () => {
   render(<Config />)
-  const textarea = await screen.findByRole('textbox', { name: /decision tree yaml/i })
+  await screen.findByRole('button', { name: 'general_car_info' })
+  await openYamlPanel()
+  const textarea = screen.getByRole('textbox', { name: /decision tree yaml/i })
   expect(textarea).toHaveValue('')
 })
 
 test('clicking Save decision tree calls updateDecisionTree', async () => {
   const { updateDecisionTree } = await import('../api/client')
   render(<Config />)
-  const textarea = await screen.findByRole('textbox', { name: /decision tree yaml/i })
+  await screen.findByRole('button', { name: 'general_car_info' })
+  await openYamlPanel()
+  const textarea = screen.getByRole('textbox', { name: /decision tree yaml/i })
   await userEvent.type(textarea, 'template: general_car_info')
   await userEvent.click(screen.getByRole('button', { name: /save decision tree/i }))
   expect(updateDecisionTree).toHaveBeenCalled()
@@ -77,9 +85,10 @@ test('clicking Test calls testDecisionTree and shows results table', async () =>
 
 test('invalid YAML shows parse error on decision tree save', async () => {
   render(<Config />)
-  const textarea = await screen.findByRole('textbox', { name: /decision tree yaml/i })
+  await screen.findByRole('button', { name: 'general_car_info' })
+  await openYamlPanel()
+  const textarea = screen.getByRole('textbox', { name: /decision tree yaml/i })
   fireEvent.change(textarea, { target: { value: ': missing_key' } })
-  await userEvent.click(screen.getByRole('button', { name: /save decision tree/i }))
   expect(await screen.findByText(/YAMLException/)).toBeInTheDocument()
 })
 
@@ -91,4 +100,30 @@ test('API failure on save template shows error message', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'general_car_info' }))
   await userEvent.click(screen.getByRole('button', { name: /save template/i }))
   expect(await screen.findByText(/500 Internal Server Error/i)).toBeInTheDocument()
+})
+
+test('shows visual tree when getDecisionTree returns a tree', async () => {
+  const { getDecisionTree } = await import('../api/client')
+  vi.mocked(getDecisionTree).mockResolvedValueOnce({
+    condition: { field: 'distance_miles', op: 'lte', value: 5 },
+    then: { template: 'general_car_info' },
+    else: { template: 'waitlist' },
+  })
+  render(<Config />)
+  await screen.findByRole('combobox', { name: /condition field/i })
+  expect(screen.getByRole('combobox', { name: /condition field/i })).toHaveValue('distance_miles')
+  expect(screen.getByDisplayValue('general_car_info')).toBeInTheDocument()
+})
+
+test('shows Add root node button when no tree saved', async () => {
+  render(<Config />)
+  await screen.findByRole('button', { name: 'general_car_info' })
+  expect(screen.getByRole('button', { name: /add root node/i })).toBeInTheDocument()
+})
+
+test('clicking Add root node renders a condition row', async () => {
+  render(<Config />)
+  await screen.findByRole('button', { name: /add root node/i })
+  await userEvent.click(screen.getByRole('button', { name: /add root node/i }))
+  expect(screen.getByRole('combobox', { name: /condition field/i })).toBeInTheDocument()
 })

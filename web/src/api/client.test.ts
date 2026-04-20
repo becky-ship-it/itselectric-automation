@@ -136,7 +136,7 @@ describe('confirmImport', () => {
 
 describe('listTemplates', () => {
   it('GETs /api/templates and returns array', async () => {
-    mockFetch([{ name: 'general_car_info', subject: 'Hi', body_html: '<p>Hi</p>', updated_at: null }])
+    mockFetch([{ name: 'general_car_info', subject: 'Hi', body_md: '<p>Hi</p>', updated_at: null }])
     const result = await listTemplates()
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('general_car_info')
@@ -145,9 +145,9 @@ describe('listTemplates', () => {
 })
 
 describe('updateTemplate', () => {
-  it('PUTs to /api/templates/{name} with subject and body_html', async () => {
-    mockFetch({ name: 'general_car_info', subject: 'Updated', body_html: '<p>New</p>', updated_at: null })
-    const result = await updateTemplate('general_car_info', { subject: 'Updated', body_html: '<p>New</p>' })
+  it('PUTs to /api/templates/{name} with subject and body_md', async () => {
+    mockFetch({ name: 'general_car_info', subject: 'Updated', body_md: '<p>New</p>', updated_at: null })
+    const result = await updateTemplate('general_car_info', { subject: 'Updated', body_md: '<p>New</p>' })
     expect(result.name).toBe('general_car_info')
     expect(result.subject).toBe('Updated')
     expect(fetch).toHaveBeenCalledWith(
