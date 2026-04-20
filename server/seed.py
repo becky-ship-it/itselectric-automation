@@ -38,7 +38,9 @@ def seed_chargers(session: Session, csv_path=DEFAULT_CHARGERS_CSV) -> int:
                     state=row["STATE"].strip().upper(),
                     zipcode=row.get("ZIPCODE", "").strip() or None,
                     charger_id=row.get("CHARGERID", "").strip() or None,
-                    num_chargers=int(row["NUM_OF_CHARGERS"]) if row.get("NUM_OF_CHARGERS") else None,
+                    num_chargers=int(row["NUM_OF_CHARGERS"])
+                    if row.get("NUM_OF_CHARGERS")
+                    else None,
                     lat=lat,
                     lon=lon,
                 )

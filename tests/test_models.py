@@ -1,8 +1,6 @@
-import pytest
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import Session
-
 from server.db import Base, get_engine, get_session  # noqa: F401
+from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 
 
 def test_engine_creates_sqlite_in_memory():

@@ -1,9 +1,6 @@
 import json
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 import server.models  # noqa: F401
 from server.db import Base
 from server.models import AppConfig, Charger, GeoCache, Template
@@ -14,6 +11,8 @@ from server.seed import (
     seed_geocache,
     seed_templates_from_yaml,
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture()

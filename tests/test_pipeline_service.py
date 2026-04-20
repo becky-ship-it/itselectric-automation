@@ -2,13 +2,12 @@ import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 import server.models  # noqa: F401
 from server.db import Base
 from server.models import Charger, Contact, OutboundEmail, Template
 from server.pipeline_service import run_pipeline
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 def _b64(text: str) -> str:

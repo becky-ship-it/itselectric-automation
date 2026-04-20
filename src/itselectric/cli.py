@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError  # type: ignore
 
 from .auth import get_credentials
 from .decision_tree import evaluate as evaluate_tree
+from .docs import fetch_template_from_doc
 from .extract import extract_parsed
 from .fixture import load_fixture_messages
 from .geo import (
@@ -17,7 +18,6 @@ from .geo import (
     geocode_address,
     load_chargers,
 )
-from .docs import fetch_template_from_doc
 from .gmail import (
     body_to_plain,
     fetch_messages,
@@ -193,7 +193,8 @@ def main() -> None:
             print(f"Fixture directory not found: {e}")
             return
         # Still need credentials when writing to a sheet or sending email.
-        creds = get_credentials() if (args.spreadsheet_id or args.template_dir or args.google_doc_id) else None
+        needs_creds = args.spreadsheet_id or args.template_dir or args.google_doc_id
+        creds = get_credentials() if needs_creds else None
     else:
         creds = get_credentials()
         try:
@@ -319,7 +320,10 @@ def main() -> None:
                 creds, args.spreadsheet_id, args.sheet, args.content_limit
             )
 
-            new_rows = [r for r in sheet_rows if row_hash(list(r), args.content_limit) not in existing]
+            new_rows = [
+                r for r in sheet_rows
+                if row_hash(list(r), args.content_limit) not in existing
+            ]
             skipped = len(sheet_rows) - len(new_rows)
             if skipped:
                 print(f"Skipping {skipped} row(s) already on sheet.")

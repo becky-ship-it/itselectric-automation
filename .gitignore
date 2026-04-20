@@ -31,3 +31,6 @@ build/
 
 # Git worktrees
 .worktrees/
+
+# SQLite database
+data/*.db
