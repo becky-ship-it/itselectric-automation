@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import App from './App'
 
-// Must be at module scope — Vitest hoists vi.mock calls
 vi.mock('./api/client', () => ({
   getPipelineStatus: vi.fn().mockResolvedValue({ status: 'idle', last_run_at: null, run_id: null }),
   runPipeline: vi.fn().mockResolvedValue({ run_id: 'test-run' }),
@@ -38,6 +37,11 @@ vi.mock('./api/client', () => ({
     preview: { new_chargers: 1, new_contacts: 2, new_templates: 0 },
   }),
   confirmImport: vi.fn().mockResolvedValue({ ok: true }),
+  listTemplates: vi.fn().mockResolvedValue([]),
+  updateTemplate: vi.fn().mockResolvedValue({ name: 't', subject: 's', body_html: '', updated_at: null }),
+  getDecisionTree: vi.fn().mockResolvedValue(null),
+  updateDecisionTree: vi.fn().mockResolvedValue({}),
+  testDecisionTree: vi.fn().mockResolvedValue({ results: [] }),
 }))
 
 test('InboxDetail shows Send button for pending contact', async () => {
@@ -64,4 +68,5 @@ test('renders sidebar nav links', () => {
   expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
   expect(screen.getByText('Inbox')).toBeInTheDocument()
   expect(screen.getByText('History')).toBeInTheDocument()
+  expect(screen.getByText('Config')).toBeInTheDocument()
 })

@@ -4,6 +4,7 @@ const links = [
   { to: '/', label: 'Dashboard' },
   { to: '/inbox', label: 'Inbox' },
   { to: '/history', label: 'History' },
+  { to: '/config', label: 'Config' },
 ]
 
 export default function Sidebar() {
