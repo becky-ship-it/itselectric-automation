@@ -37,10 +37,13 @@ class ContactOut(BaseModel):
     name: str | None
     address: str | None
     email_primary: str | None
+    email_form: str | None
+    raw_body: str | None
     parse_status: str
     nearest_charger_id: int | None
     distance_miles: float | None
-    hubspot_status: str
+    geocache_hit: bool
+    hubspot_status: str | None
 
     model_config = {"from_attributes": True}
 
@@ -54,6 +57,7 @@ class OutboundEmailOut(BaseModel):
     body_html: str | None
     sent_at: datetime | None
     status: str
+    sent_by: str
     error_message: str | None
 
     model_config = {"from_attributes": True}
