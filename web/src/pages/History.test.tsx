@@ -55,3 +55,31 @@ test('export links point to API endpoints', async () => {
   expect(screen.getByRole('link', { name: /download csv/i }))
     .toHaveAttribute('href', '/api/export/csv')
 })
+
+test('file upload triggers preview and shows Confirm button', async () => {
+  render(<History />)
+  await screen.findByText('Alice Smith')
+
+  const snapshot = JSON.stringify({
+    contacts: [], outbound_emails: [], chargers: [], templates: [], geocache: [],
+  })
+  const file = new File([snapshot], 'snapshot.json', { type: 'application/json' })
+  const input = screen.getByLabelText(/upload snapshot/i)
+  await userEvent.upload(input, file)
+
+  expect(await screen.findByRole('button', { name: /confirm import/i })).toBeInTheDocument()
+})
+
+test('clicking Confirm Import calls confirmImport and shows success', async () => {
+  render(<History />)
+  await screen.findByText('Alice Smith')
+
+  const snapshot = JSON.stringify({
+    contacts: [], outbound_emails: [], chargers: [], templates: [], geocache: [],
+  })
+  const file = new File([snapshot], 'snapshot.json', { type: 'application/json' })
+  await userEvent.upload(screen.getByLabelText(/upload snapshot/i), file)
+  await userEvent.click(await screen.findByRole('button', { name: /confirm import/i }))
+
+  expect(await screen.findByText(/import complete/i)).toBeInTheDocument()
+})

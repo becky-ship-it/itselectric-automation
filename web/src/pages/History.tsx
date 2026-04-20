@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { listContacts } from '../api/client'
-import type { Contact } from '../api/client'
+import { listContacts, previewImport, confirmImport } from '../api/client'
+import type { Contact, ImportPreview } from '../api/client'
 
 const STATUS_BADGE: Record<string, string> = {
   parsed: 'text-green-700 bg-green-50',
@@ -12,9 +12,48 @@ export default function History() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
 
+  type ImportPhase = 'idle' | 'loading' | 'preview' | 'confirming' | 'done'
+  const [importPhase, setImportPhase] = useState<ImportPhase>('idle')
+  const [importData, setImportData] = useState<ImportPreview | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+
   useEffect(() => {
     listContacts().then(setContacts).finally(() => setLoading(false))
   }, [])
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportPhase('loading')
+    setImportError(null)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      void (async () => {
+        try {
+          const snapshot: unknown = JSON.parse(ev.target?.result as string)
+          const result = await previewImport(snapshot)
+          setImportData(result)
+          setImportPhase('preview')
+        } catch (err) {
+          setImportError(String(err))
+          setImportPhase('idle')
+        }
+      })()
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleConfirmImport() {
+    if (!importData) return
+    setImportPhase('confirming')
+    try {
+      await confirmImport(importData.import_id)
+      setImportPhase('done')
+    } catch (err) {
+      setImportError(String(err))
+      setImportPhase('idle')
+    }
+  }
 
   const filtered = query
     ? contacts.filter((c) => {
@@ -109,6 +148,66 @@ export default function History() {
           </table>
         </div>
       )}
+
+      <div className="border-t border-gray-200 pt-6">
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+          Import Snapshot
+        </h2>
+
+        {importPhase === 'done' ? (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-green-700">Import complete.</span>
+            <button
+              onClick={() => { setImportPhase('idle'); setImportData(null) }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Import another
+            </button>
+          </div>
+        ) : (importPhase === 'preview' || importPhase === 'confirming') && importData ? (
+          <div className="space-y-3">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm max-w-xs">
+              <dt className="text-gray-500">New contacts</dt>
+              <dd className="font-medium text-gray-900">{importData.preview.new_contacts}</dd>
+              <dt className="text-gray-500">New chargers</dt>
+              <dd className="font-medium text-gray-900">{importData.preview.new_chargers}</dd>
+              <dt className="text-gray-500">New templates</dt>
+              <dd className="font-medium text-gray-900">{importData.preview.new_templates}</dd>
+            </dl>
+            <button
+              onClick={() => void handleConfirmImport()}
+              disabled={importPhase === 'confirming'}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium
+                         hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              Confirm Import
+            </button>
+          </div>
+        ) : (
+          <label className="flex flex-col gap-1.5 cursor-pointer">
+            <span className="text-sm text-gray-600">Upload snapshot (JSON)</span>
+            <input
+              aria-label="Upload snapshot"
+              type="file"
+              accept=".json,application/json"
+              onChange={handleFileChange}
+              disabled={importPhase === 'loading'}
+              className="text-sm text-gray-600
+                         file:mr-3 file:py-1.5 file:px-3 file:rounded-lg
+                         file:border file:border-gray-300 file:cursor-pointer
+                         file:text-sm file:font-medium file:text-gray-700
+                         file:bg-white hover:file:bg-gray-50"
+            />
+            {importPhase === 'loading' && (
+              <span className="text-xs text-gray-400">Reading file…</span>
+            )}
+          </label>
+        )}
+
+        {importError && (
+          <p className="mt-2 text-sm text-red-600">{importError}</p>
+        )}
+      </div>
     </div>
   )
 }
