@@ -93,6 +93,13 @@ export default function Config() {
     }
   }
 
+  function download(content: string, filename: string, mime: string) {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([content], { type: mime }))
+    a.download = filename
+    a.click()
+  }
+
   async function handleSaveTree() {
     if (!tree) return
     setTreeSaving(true)
@@ -126,7 +133,16 @@ export default function Config() {
       <h1 className="text-2xl font-semibold text-gray-900">Config</h1>
 
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Templates</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Templates</h2>
+          <button
+            onClick={() => download(JSON.stringify(templates, null, 2), 'templates.json', 'application/json')}
+            disabled={templates.length === 0}
+            className="text-xs text-gray-500 hover:text-gray-800 disabled:opacity-40 transition-colors"
+          >
+            ↓ Download JSON
+          </button>
+        </div>
         <div className="flex border border-gray-200 rounded-lg overflow-hidden min-h-64">
           <div className="w-52 shrink-0 border-r border-gray-200 overflow-y-auto">
             {loading ? (
@@ -207,7 +223,16 @@ export default function Config() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Decision Tree</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Decision Tree</h2>
+          <button
+            onClick={() => download(treeYaml, 'decision_tree.yaml', 'text/yaml')}
+            disabled={!tree}
+            className="text-xs text-gray-500 hover:text-gray-800 disabled:opacity-40 transition-colors"
+          >
+            ↓ Download YAML
+          </button>
+        </div>
         <div className="space-y-4">
           {/* Visual editor */}
           <div className="p-4 border border-gray-200 rounded-lg min-h-24">
