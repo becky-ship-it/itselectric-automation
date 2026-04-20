@@ -9,18 +9,23 @@ description = "Gmail-to-Sheets automation for It's Electric form emails"
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.12.0",
+    "fastapi>=0.115.0",
     "geopy>=2.4",
     "google-api-python-client>=2.190.0",
     "google-auth>=2.48.0",
     "google-auth-httplib2>=0.3.0",
     "google-auth-oauthlib>=1.2.4",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
     "pyyaml>=6.0",
     "requests>=2.31.0",
+    "sqlalchemy>=2.0.0",
+    "uvicorn[standard]>=0.30.0",
     "customtkinter>=5.2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.4", "pyinstaller>=6.0", "types-PyYAML>=6.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "pyinstaller>=6.0", "types-PyYAML>=6.0"]
 
 [project.scripts]
 itselectric     = "itselectric.cli:main"
