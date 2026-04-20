@@ -82,15 +82,23 @@ def send_contact_email(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
+    from src.itselectric.email_layout import render_email
+
     subject = outbound.subject or ""
-    body = outbound.body_html or ""
 
     if template_override:
         tmpl = db.query(Template).filter_by(name=template_override).first()
         if tmpl:
             outbound.template_name = template_override
             subject = tmpl.subject
-            body = tmpl.body_html
+            body = render_email(tmpl.body_md)
+        else:
+            body = outbound.body_html or ""
+    elif outbound.template_name:
+        tmpl = db.query(Template).filter_by(name=outbound.template_name).first()
+        body = render_email(tmpl.body_md) if tmpl else (outbound.body_html or "")
+    else:
+        body = outbound.body_html or ""
 
     try:
         creds = get_credentials()
@@ -153,8 +161,15 @@ def send_batch(db: DbDep):
             continue
         try:
             creds = get_credentials()
+            from src.itselectric.email_layout import render_email as _render
+
+            tmpl_body = outbound.body_html or ""
+            if outbound.template_name:
+                tmpl_obj = db.query(Template).filter_by(name=outbound.template_name).first()
+                if tmpl_obj:
+                    tmpl_body = _render(tmpl_obj.body_md)
             ok = send_email(
-                creds, contact.email_primary, outbound.subject or "", outbound.body_html or ""
+                creds, contact.email_primary, outbound.subject or "", tmpl_body
             )
             outbound.status = "sent" if ok else "failed"
         except Exception as e:
