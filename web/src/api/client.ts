@@ -37,6 +37,15 @@ export interface ContactDetail {
   outbound_emails: OutboundEmail[]
 }
 
+export interface ImportPreview {
+  import_id: string
+  preview: {
+    new_chargers: number
+    new_contacts: number
+    new_templates: number
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = init ? await fetch(url, init) : await fetch(url)
   if (!resp.ok) {
@@ -74,4 +83,16 @@ export function sendContact(
 
 export function skipContact(id: string): Promise<{ ok: boolean }> {
   return request(`/api/contacts/${id}/skip`, { method: 'POST' })
+}
+
+export function previewImport(snapshot: unknown): Promise<ImportPreview> {
+  return request('/api/import/snapshot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(snapshot),
+  })
+}
+
+export function confirmImport(importId: string): Promise<{ ok: boolean }> {
+  return request(`/api/import/snapshot/confirm/${importId}`, { method: 'POST' })
 }

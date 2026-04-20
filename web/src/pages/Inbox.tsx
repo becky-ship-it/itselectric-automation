@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { listContacts, Contact } from '../api/client'
+import { listContacts } from '../api/client'
+import type { Contact } from '../api/client'
 import ContactRow from '../components/ContactRow'
 import InboxDetail from './InboxDetail'
 

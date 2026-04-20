@@ -33,6 +33,11 @@ vi.mock('./api/client', () => ({
   }),
   sendContact: vi.fn().mockResolvedValue({ ok: true, status: 'sent' }),
   skipContact: vi.fn().mockResolvedValue({ ok: true }),
+  previewImport: vi.fn().mockResolvedValue({
+    import_id: 'imp-1',
+    preview: { new_chargers: 1, new_contacts: 2, new_templates: 0 },
+  }),
+  confirmImport: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 test('InboxDetail shows Send button for pending contact', async () => {
@@ -58,4 +63,5 @@ test('renders sidebar nav links', () => {
   )
   expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
   expect(screen.getByText('Inbox')).toBeInTheDocument()
+  expect(screen.getByText('History')).toBeInTheDocument()
 })

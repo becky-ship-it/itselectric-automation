@@ -6,6 +6,8 @@ import {
   getContact,
   sendContact,
   skipContact,
+  previewImport,
+  confirmImport,
 } from './client'
 
 function mockFetch(data: unknown, status = 200) {
@@ -90,6 +92,38 @@ describe('skipContact', () => {
     await skipContact('msg1')
     expect(fetch).toHaveBeenCalledWith(
       '/api/contacts/msg1/skip',
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+})
+
+describe('previewImport', () => {
+  it('POSTs snapshot JSON and returns import_id + preview counts', async () => {
+    mockFetch({
+      import_id: 'abc',
+      preview: { new_chargers: 2, new_contacts: 0, new_templates: 1 },
+    })
+    const snapshot = { contacts: [], outbound_emails: [], chargers: [], templates: [], geocache: [] }
+    const result = await previewImport(snapshot)
+    expect(result.import_id).toBe('abc')
+    expect(result.preview.new_chargers).toBe(2)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/import/snapshot',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      })
+    )
+  })
+})
+
+describe('confirmImport', () => {
+  it('POSTs to confirm endpoint and returns ok', async () => {
+    mockFetch({ ok: true })
+    const result = await confirmImport('abc')
+    expect(result.ok).toBe(true)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/import/snapshot/confirm/abc',
       expect.objectContaining({ method: 'POST' })
     )
   })

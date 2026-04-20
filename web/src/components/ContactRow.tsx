@@ -1,4 +1,4 @@
-import { Contact } from '../api/client'
+import type { Contact } from '../api/client'
 
 interface Props {
   contact: Contact
