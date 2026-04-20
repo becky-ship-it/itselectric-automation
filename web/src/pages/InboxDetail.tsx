@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getContact, sendContact, skipContact, ContactDetail } from '../api/client'
+import { getContact, sendContact, skipContact } from '../api/client'
+import type { ContactDetail } from '../api/client'
 
 interface Props {
   id: string

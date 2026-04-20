@@ -9,12 +9,12 @@ import {
 } from './client'
 
 function mockFetch(data: unknown, status = 200) {
-  global.fetch = vi.fn().mockResolvedValue({
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(data),
     text: () => Promise.resolve(JSON.stringify(data)),
-  } as Response)
+  } as Response))
 }
 
 beforeEach(() => vi.restoreAllMocks())
