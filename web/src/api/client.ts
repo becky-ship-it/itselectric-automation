@@ -4,10 +4,6 @@ export interface PipelineStatus {
   run_id: string | null
 }
 
-export async function getPipelineStatus(): Promise<PipelineStatus> {
-  return { status: 'idle', last_run_at: null, run_id: null }
-}
-
 export interface Contact {
   id: string
   received_at: string | null
@@ -41,25 +37,41 @@ export interface ContactDetail {
   outbound_emails: OutboundEmail[]
 }
 
-export async function runPipeline(_opts?: { fixture?: boolean }): Promise<{ run_id: string }> {
-  return { run_id: '' }
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const resp = init ? await fetch(url, init) : await fetch(url)
+  if (!resp.ok) {
+    const text = await resp.text()
+    throw new Error(`${resp.status} ${text}`)
+  }
+  return resp.json() as Promise<T>
 }
 
-export async function listContacts(_opts?: { status?: string }): Promise<Contact[]> {
-  return []
+export function getPipelineStatus(): Promise<PipelineStatus> {
+  return request('/api/pipeline/status')
 }
 
-export async function getContact(_id: string): Promise<ContactDetail> {
-  return { contact: {} as Contact, outbound_emails: [] }
+export function runPipeline(opts?: { fixture?: boolean }): Promise<{ run_id: string }> {
+  const qs = opts?.fixture ? '?fixture=true' : ''
+  return request(`/api/pipeline/run${qs}`, { method: 'POST' })
 }
 
-export async function sendContact(
-  _id: string,
-  _opts?: { templateOverride?: string }
+export function listContacts(opts?: { status?: string }): Promise<Contact[]> {
+  const qs = opts?.status ? `?status=${opts.status}` : ''
+  return request(`/api/contacts${qs}`)
+}
+
+export function getContact(id: string): Promise<ContactDetail> {
+  return request(`/api/contacts/${id}`)
+}
+
+export function sendContact(
+  id: string,
+  opts?: { templateOverride?: string }
 ): Promise<{ ok: boolean; status: string }> {
-  return { ok: false, status: '' }
+  const qs = opts?.templateOverride ? `?template_override=${opts.templateOverride}` : ''
+  return request(`/api/contacts/${id}/send${qs}`, { method: 'POST' })
 }
 
-export async function skipContact(_id: string): Promise<{ ok: boolean }> {
-  return { ok: false }
+export function skipContact(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/contacts/${id}/skip`, { method: 'POST' })
 }
