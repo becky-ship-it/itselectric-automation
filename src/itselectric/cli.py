@@ -17,12 +17,12 @@ from .geo import (
     geocode_address,
     load_chargers,
 )
+from .docs import fetch_template_from_doc
 from .gmail import (
     body_to_plain,
     fetch_messages,
     format_sent_date,
     get_body_from_payload,
-    get_template_images,
     load_template,
     send_email,
 )
@@ -44,6 +44,7 @@ _DEFAULTS = {
     "hubspot_access_token": "",
     "decision_tree_file": "",
     "template_dir": "",
+    "google_doc_id": "",
 }
 
 
@@ -159,6 +160,16 @@ def parse_args(config: dict) -> argparse.Namespace:
         metavar="DIR",
         help="Directory containing email template .txt files.",
     )
+    parser.add_argument(
+        "--google-doc-id",
+        default=config.get("google_doc_id", _DEFAULTS["google_doc_id"]),
+        metavar="ID",
+        help=(
+            "Google Doc ID containing email templates. H1 headings must match decision tree"
+            " template names. Subject = first paragraph; body = remaining content."
+            " Requires drive.readonly scope. Takes priority over --template-dir."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -182,7 +193,7 @@ def main() -> None:
             print(f"Fixture directory not found: {e}")
             return
         # Still need credentials when writing to a sheet or sending email.
-        creds = get_credentials() if (args.spreadsheet_id or args.template_dir) else None
+        creds = get_credentials() if (args.spreadsheet_id or args.template_dir or args.google_doc_id) else None
     else:
         creds = get_credentials()
         try:
@@ -243,7 +254,8 @@ def main() -> None:
             else:
                 print(f"  → Could not geocode: {parsed['address']!r}")
 
-        if decision_tree and nearest_charger_dict and dist_float and parsed and args.template_dir and creds:
+        use_templates = (args.template_dir or args.google_doc_id) and creds
+        if decision_tree and nearest_charger_dict and dist_float and parsed and use_templates:
             ctx = _build_tree_context(
                 address=parsed["address"],
                 charger_dict=nearest_charger_dict,
@@ -256,14 +268,23 @@ def main() -> None:
                 template_name = None
             if template_name is not None:
                 try:
-                    subject, body = load_template(template_name, args.template_dir)
-                    body = body.format_map({"name": parsed["name"], "address": parsed["address"]})
-                except FileNotFoundError:
-                    print(f"  → Template '{template_name}' not found in {args.template_dir}")
+                    if args.google_doc_id:
+                        subject, body = fetch_template_from_doc(
+                            creds, args.google_doc_id, template_name
+                        )
+                    else:
+                        subject, body = load_template(template_name, args.template_dir)
+                    body = body.format_map({
+                        "name": parsed["name"],
+                        "address": parsed["address"],
+                        "city": nearest_charger_dict["city"],
+                        "state": ctx["driver_state"] or "",
+                    })
+                except (FileNotFoundError, KeyError, ValueError) as e:
+                    print(f"  → Template error: {e}")
                     template_name = None
             if template_name is not None:
-                images = get_template_images(template_name, args.template_dir)
-                sent = send_email(creds, parsed["email_1"], subject, body, images=images or None)
+                sent = send_email(creds, parsed["email_1"], subject, body)
                 email_status = template_name if sent else "failed"
                 print(
                     f"  → Email '{template_name}' "

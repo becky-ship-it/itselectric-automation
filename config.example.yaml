@@ -30,8 +30,15 @@ geocache: geocache.json
 # See decision_tree.example.yaml for the full format.
 # decision_tree_file: decision_tree.yaml
 
-# Directory containing email template .txt files.
+# Google Doc ID for email templates (from the doc URL).
+# H1 headings in the doc must match decision tree template names.
+# Under each heading: first paragraph = subject, rest = HTML body.
+# Supports {name}, {address}, {city}, {state} substitution.
+# Requires drive.readonly scope (re-auth token.json after adding this).
+# Takes priority over template_dir when set.
+# google_doc_id: "1MQOhCOSRZ9zi7-XWVEh-7e-BCjHjeCgjg2l-IxJskp4"
+
+# Directory containing email template .txt/.html files (local fallback).
 # Each file: first line = subject, blank line, then body.
 # Supports {name} and {address} substitution in the body.
-# See email_templates/ for examples.
 # template_dir: email_templates

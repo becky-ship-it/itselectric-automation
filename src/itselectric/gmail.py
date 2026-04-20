@@ -112,22 +112,6 @@ def fetch_messages(creds: Credentials, label: str, max_messages: int) -> list[di
     ]
 
 
-# Maps template name → {cid: image filename} for inline images.
-# Image files are resolved from {template_dir}/images/.
-_TEMPLATE_IMAGES: dict[str, dict[str, str]] = {
-    "tell_me_more_massachusetts": {"boston_map": "boston_full_map.png"},
-}
-
-
-def get_template_images(template_name: str, template_dir: str) -> dict[str, str]:
-    """
-    Return a CID→filepath dict for any inline images used by the given template.
-    Returns an empty dict if the template has no inline images.
-    """
-    mapping = _TEMPLATE_IMAGES.get(template_name, {})
-    images_dir = os.path.join(template_dir, "images")
-    return {cid: os.path.join(images_dir, filename) for cid, filename in mapping.items()}
-
 
 def load_template(template_name: str, template_dir: str) -> tuple[str, str]:
     """
