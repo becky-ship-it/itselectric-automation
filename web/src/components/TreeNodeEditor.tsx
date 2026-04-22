@@ -10,7 +10,8 @@ export type ConditionNode = {
 }
 export type TreeNode = LeafNode | ConditionNode
 
-export function isLeaf(node: TreeNode): node is LeafNode {
+export function isLeaf(node: TreeNode | null | undefined): node is LeafNode {
+  if (!node || typeof node !== 'object') return true
   return 'template' in node
 }
 
@@ -59,6 +60,8 @@ export default function TreeNodeEditor({ node, onChange, templates, depth = 0 }:
   }
 
   const { condition, then, else: elseNode } = node
+  const thenNode: TreeNode = then ?? { template: '' }
+  const elseNodeSafe: TreeNode = elseNode ?? { template: '' }
 
   function updateCondition(patch: Partial<typeof condition>) {
     onChange({ ...node, condition: { ...condition, ...patch } })
@@ -108,7 +111,7 @@ export default function TreeNodeEditor({ node, onChange, templates, depth = 0 }:
           <span className="text-xs font-semibold text-green-600 uppercase tracking-wide">then</span>
           <div className="mt-1">
             <TreeNodeEditor
-              node={then}
+              node={thenNode}
               onChange={(n) => onChange({ ...node, then: n })}
               templates={templates}
               depth={depth + 1}
@@ -119,7 +122,7 @@ export default function TreeNodeEditor({ node, onChange, templates, depth = 0 }:
           <span className="text-xs font-semibold text-red-500 uppercase tracking-wide">else</span>
           <div className="mt-1">
             <TreeNodeEditor
-              node={elseNode}
+              node={elseNodeSafe}
               onChange={(n) => onChange({ ...node, else: n })}
               templates={templates}
               depth={depth + 1}
