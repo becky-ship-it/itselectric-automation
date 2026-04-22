@@ -89,6 +89,24 @@ def _collect_template_names(node: dict) -> set[str]:
     return names
 
 
+_DECISION_TREE_KEY = "__decision_tree_json__"
+
+
+def seed_decision_tree_from_yaml(session: Session, yaml_path: str) -> int:
+    """Seed the DB decision tree from a YAML file if none exists yet.
+    Returns 1 if seeded, 0 if already present or file missing."""
+    if session.query(AppConfig).filter_by(key=_DECISION_TREE_KEY).first():
+        return 0
+    try:
+        with open(yaml_path) as f:
+            tree = yaml.safe_load(f)
+    except FileNotFoundError:
+        return 0
+    session.add(AppConfig(key=_DECISION_TREE_KEY, value=json.dumps(tree)))
+    session.flush()
+    return 1
+
+
 def seed_templates_from_yaml(session: Session, yaml_path: str) -> int:
     """Create placeholder Template rows for all names in a decision tree YAML.
     Does not overwrite existing templates."""

@@ -8,8 +8,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from server.db import Base, get_engine, get_session
-from server.routers import chargers, config, contacts, export, pipeline, templates
-from server.seed import seed_chargers, seed_config, seed_geocache, seed_templates_from_yaml
+from server.routers import chargers, config, contacts, export, logs, pipeline, templates
+from server.seed import seed_chargers, seed_config, seed_decision_tree_from_yaml, seed_geocache, seed_templates_from_yaml
 
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///data/itselectric.db")
 GEOCACHE_PATH = os.getenv("GEOCACHE_PATH", "geocache.json")
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
         seed_geocache(session, GEOCACHE_PATH)
         if Path(DECISION_TREE_PATH).exists():
             seed_templates_from_yaml(session, DECISION_TREE_PATH)
+            seed_decision_tree_from_yaml(session, DECISION_TREE_PATH)
         config_data: dict = {}
         if Path(CONFIG_YAML_PATH).exists():
             with open(CONFIG_YAML_PATH) as f:
@@ -49,6 +50,7 @@ app.include_router(templates.router, prefix="/api/templates", tags=["templates"]
 app.include_router(chargers.router, prefix="/api/chargers", tags=["chargers"])
 app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(export.router, prefix="/api", tags=["export"])
+app.include_router(logs.router, prefix="/api", tags=["logs"])
 
 if os.path.exists("web/dist"):
     app.mount("/", StaticFiles(directory="web/dist", html=True), name="static")

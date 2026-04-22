@@ -8,6 +8,7 @@ from server.seed import (
     DEFAULT_CHARGERS_CSV,
     seed_chargers,
     seed_config,
+    seed_decision_tree_from_yaml,
     seed_geocache,
     seed_templates_from_yaml,
 )
@@ -75,6 +76,37 @@ def test_seed_templates_from_yaml_creates_rows(session, tmp_path):
     names = {t.name for t in session.query(Template).all()}
     assert "tell_me_more_general" in names
     assert "waitlist" in names
+
+
+def test_seed_decision_tree_from_yaml_inserts_when_absent(session, tmp_path):
+    yaml_file = tmp_path / "tree.yaml"
+    yaml_file.write_text(
+        "condition:\n  field: distance_miles\n  op: lte\n  value: 5\n"
+        "then:\n  template: close\nelse:\n  template: far\n"
+    )
+    count = seed_decision_tree_from_yaml(session, str(yaml_file))
+    assert count == 1
+    row = session.query(AppConfig).filter_by(key="__decision_tree_json__").first()
+    assert row is not None
+    tree = json.loads(row.value)
+    assert tree["condition"]["field"] == "distance_miles"
+
+
+def test_seed_decision_tree_from_yaml_skips_when_present(session, tmp_path):
+    yaml_file = tmp_path / "tree.yaml"
+    yaml_file.write_text("template: new\n")
+    session.add(AppConfig(key="__decision_tree_json__", value=json.dumps({"template": "already_here"})))
+    session.flush()
+    count = seed_decision_tree_from_yaml(session, str(yaml_file))
+    assert count == 0
+    row = session.query(AppConfig).filter_by(key="__decision_tree_json__").first()
+    assert json.loads(row.value) == {"template": "already_here"}
+
+
+def test_seed_decision_tree_from_yaml_missing_file(session, tmp_path):
+    count = seed_decision_tree_from_yaml(session, str(tmp_path / "nonexistent.yaml"))
+    assert count == 0
+    assert session.query(AppConfig).filter_by(key="__decision_tree_json__").first() is None
 
 
 def test_seed_templates_does_not_overwrite_existing(session, tmp_path):
