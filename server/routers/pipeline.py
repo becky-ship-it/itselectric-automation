@@ -1,16 +1,18 @@
 """Pipeline API endpoints."""
 
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 from threading import Thread
 from typing import Annotated
 
-import yaml  # type: ignore
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, sessionmaker
 
+from server import log_store
+from server.models import AppConfig
 from server.pipeline_service import run_pipeline
 from server.sse import create_run, event_stream, remove_run
 
@@ -18,7 +20,7 @@ router = APIRouter()
 
 _status: dict = {"status": "idle", "last_run_at": None, "run_id": None}
 
-DECISION_TREE_PATH = "decision_tree.yaml"
+_DECISION_TREE_KEY = "__decision_tree_json__"
 FIXTURE_DIR = "tests/fixtures/emails"
 
 
@@ -43,18 +45,16 @@ def pipeline_status():
 
 
 @router.post("/run")
-def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
+async def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
     run_id = str(uuid.uuid4())
     _status["status"] = "running"
     _status["run_id"] = run_id
     queue = create_run(run_id)
 
-    decision_tree = None
-    try:
-        with open(DECISION_TREE_PATH) as f:
-            decision_tree = yaml.safe_load(f)
-    except FileNotFoundError:
-        pass
+    _tree_row = db.query(AppConfig).filter_by(key=_DECISION_TREE_KEY).first()
+    decision_tree = json.loads(_tree_row.value) if _tree_row else None
+    if decision_tree is None:
+        log_store.append("Warning: no decision tree in DB — emails will not be routed")
 
     fixture_messages = None
     if fixture:
@@ -65,9 +65,11 @@ def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
         except FileNotFoundError:
             fixture_messages = []
 
-    loop = asyncio.new_event_loop()
+    loop = asyncio.get_running_loop()
 
     def _log(msg: str) -> None:
+        from server import log_store
+        log_store.append(msg)
         loop.call_soon_threadsafe(queue.put_nowait, msg)
 
     def _run() -> None:
