@@ -13,6 +13,7 @@ from server.seed import seed_chargers, seed_config, seed_decision_tree_from_yaml
 
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///data/itselectric.db")
 GEOCACHE_PATH = os.getenv("GEOCACHE_PATH", "geocache.json")
+# decision_tree.yaml is a seed-only source — the DB is the live source of truth after first run
 DECISION_TREE_PATH = os.getenv("DECISION_TREE_PATH", "decision_tree.yaml")
 CONFIG_YAML_PATH = os.getenv("CONFIG_YAML_PATH", "config.yaml")
 
