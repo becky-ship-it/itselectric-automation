@@ -51,7 +51,6 @@ def _get_config(session: Session, key: str, default: str = "") -> str:
 
 def run_pipeline(
     session: Session,
-    geocache_path: str = "geocache.json",
     decision_tree: dict | None = None,
     auto_send: bool = False,
     label: str | None = None,

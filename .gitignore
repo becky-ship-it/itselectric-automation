@@ -34,3 +34,12 @@ build/
 
 # SQLite database
 data/*.db
+
+# Geocache (seeded into DB on first run; runtime data)
+geocache.json
+
+# Dev tool artifacts
+.playwright-mcp/
+
+# Local plan docs
+docs/plans/
