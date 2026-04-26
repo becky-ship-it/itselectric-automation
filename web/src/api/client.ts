@@ -17,6 +17,7 @@ export interface Contact {
   distance_miles: number | null
   geocache_hit: boolean
   hubspot_status: string | null
+  outbound_status: string | null
 }
 
 export interface OutboundEmail {
@@ -110,6 +111,18 @@ export function skipContact(id: string): Promise<{ ok: boolean }> {
   return request(`/api/contacts/${id}/skip`, { method: 'POST' })
 }
 
+export function deleteContact(id: string): Promise<{ ok: boolean }> {
+  return request(`/api/contacts/${id}`, { method: 'DELETE' })
+}
+
+export function fixContact(id: string, fields: { name: string; email: string; address: string }): Promise<Contact> {
+  return request(`/api/contacts/${id}/fix`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  })
+}
+
 export function previewImport(snapshot: unknown): Promise<ImportPreview> {
   return request('/api/import/snapshot', {
     method: 'POST',
@@ -126,12 +139,34 @@ export function listTemplates(): Promise<Template[]> {
   return request('/api/templates')
 }
 
+export function createTemplate(name: string, body: TemplateIn): Promise<Template> {
+  return request(`/api/templates/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
 export function updateTemplate(name: string, body: TemplateIn): Promise<Template> {
   return request(`/api/templates/${name}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+}
+
+export function deleteTemplate(name: string): Promise<{ ok: boolean }> {
+  return request(`/api/templates/${name}`, { method: 'DELETE' })
+}
+
+export async function previewTemplateHtml(bodyMd: string): Promise<string> {
+  const resp = await fetch('/api/templates/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body_md: bodyMd }),
+  })
+  if (!resp.ok) throw new Error(`${resp.status}`)
+  return resp.text()
 }
 
 export function getDecisionTree(): Promise<unknown> {
@@ -148,4 +183,16 @@ export function updateDecisionTree(tree: unknown): Promise<unknown> {
 
 export function testDecisionTree(): Promise<DecisionTreeTestResponse> {
   return request('/api/decision-tree/test', { method: 'POST' })
+}
+
+export function getConfig(): Promise<{ data: Record<string, string> }> {
+  return request('/api/config')
+}
+
+export function updateConfig(patch: Record<string, string>): Promise<{ data: Record<string, string> }> {
+  return request('/api/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
 }

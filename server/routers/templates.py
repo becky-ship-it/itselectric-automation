@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
 from server.models import Template
@@ -25,6 +27,16 @@ def get_db():
 
 
 DbDep = Annotated[Session, Depends(get_db)]
+
+
+class PreviewIn(BaseModel):
+    body_md: str
+
+
+@router.post("/preview", response_class=HTMLResponse)
+def preview_template(body: PreviewIn):
+    from src.itselectric.email_layout import render_email
+    return render_email(body.body_md)
 
 
 @router.get("", response_model=list[TemplateOut])

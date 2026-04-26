@@ -5,13 +5,14 @@ const links = [
   { to: '/inbox', label: 'Inbox' },
   { to: '/history', label: 'History' },
   { to: '/config', label: 'Config' },
+  { to: '/logs', label: 'Logs' },
 ]
 
 export default function Sidebar() {
   return (
     <nav className="w-48 shrink-0 bg-gray-900 text-white flex flex-col h-full p-4 gap-1">
-      <div className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-        It's Electric
+      <div className="mb-5 px-2">
+        <img src="/logo.svg" alt="it's electric" className="w-full max-w-[140px]" style={{ filter: 'brightness(0) invert(1)' }} />
       </div>
       {links.map(({ to, label }) => (
         <NavLink

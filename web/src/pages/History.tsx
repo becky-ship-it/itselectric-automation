@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { listContacts, previewImport, confirmImport } from '../api/client'
+import { listContacts, previewImport, confirmImport, deleteContact } from '../api/client'
 import type { Contact, ImportPreview } from '../api/client'
 
 const STATUS_BADGE: Record<string, string> = {
@@ -11,15 +11,58 @@ export default function History() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   type ImportPhase = 'idle' | 'loading' | 'preview' | 'confirming' | 'done'
   const [importPhase, setImportPhase] = useState<ImportPhase>('idle')
   const [importData, setImportData] = useState<ImportPreview | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
 
+  function reload() {
+    setLoading(true)
+    listContacts().then((cs) => { setContacts(cs); setChecked(new Set()) }).finally(() => setLoading(false))
+  }
+
   useEffect(() => {
-    listContacts().then(setContacts).finally(() => setLoading(false))
+    reload()
   }, [])
+
+  function toggleCheck(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll(visible: Contact[]) {
+    const visibleIds = visible.map((c) => c.id)
+    setChecked((prev) =>
+      visibleIds.every((id) => prev.has(id))
+        ? new Set([...prev].filter((id) => !visibleIds.includes(id)))
+        : new Set([...prev, ...visibleIds])
+    )
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('Delete this contact? This cannot be undone.')) return
+    await deleteContact(id)
+    reload()
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...checked]
+    if (ids.length === 0) return
+    if (!window.confirm(`Delete ${ids.length} contact(s)? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await Promise.all(ids.map(deleteContact))
+      reload()
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -69,7 +112,19 @@ export default function History() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">History</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-semibold text-gray-900">History</h1>
+          {checked.size > 0 && (
+            <button
+              onClick={() => void handleBulkDelete()}
+              disabled={deleting}
+              className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200
+                         rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              {deleting ? 'Deleting…' : `Delete ${checked.size} selected`}
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <a
             href="/api/export/snapshot"
@@ -108,7 +163,15 @@ export default function History() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                {['Date', 'Name', 'Address', 'Email', 'Status'].map((h) => (
+                <th className="px-3 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && filtered.every((c) => checked.has(c.id))}
+                    onChange={() => toggleAll(filtered)}
+                    className="h-3.5 w-3.5 rounded border-gray-300"
+                  />
+                </th>
+                {['Date', 'Name', 'Address', 'Email', 'Status', ''].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"
@@ -120,12 +183,20 @@ export default function History() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50">
+                <tr key={c.id} className="hover:bg-gray-50 group">
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={checked.has(c.id)}
+                      onChange={() => toggleCheck(c.id)}
+                      className="h-3.5 w-3.5 rounded border-gray-300"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                     {c.received_at ? new Date(c.received_at).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    {c.name || '(unparsed)'}
+                    {c.name || '—'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
                     {c.address || '—'}
@@ -141,6 +212,16 @@ export default function History() {
                     >
                       {c.parse_status}
                     </span>
+                  </td>
+                  <td className="px-2 py-3">
+                    <button
+                      onClick={() => void handleDelete(c.id)}
+                      aria-label="Delete contact"
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600
+                                 transition-all text-base leading-none px-1"
+                    >
+                      ×
+                    </button>
                   </td>
                 </tr>
               ))}

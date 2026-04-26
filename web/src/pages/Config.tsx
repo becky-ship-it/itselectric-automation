@@ -1,12 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import yaml from 'js-yaml'
-import { marked } from 'marked'
 import {
   listTemplates,
+  createTemplate,
   updateTemplate,
+  deleteTemplate,
   getDecisionTree,
   updateDecisionTree,
   testDecisionTree,
+  getConfig,
+  updateConfig,
+  previewTemplateHtml,
 } from '../api/client'
 import type { Template, DecisionTreeTestResult } from '../api/client'
 import TreeNodeEditor from '../components/TreeNodeEditor'
@@ -20,6 +25,9 @@ export default function Config() {
   const [tmplSaving, setTmplSaving] = useState(false)
   const [tmplSaved, setTmplSaved] = useState(false)
   const [tmplError, setTmplError] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
+  const [newNameError, setNewNameError] = useState<string | null>(null)
+  const [previewHtml, setPreviewHtml] = useState<string>('')
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -34,14 +42,29 @@ export default function Config() {
   const [treeError, setTreeError] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<DecisionTreeTestResult[] | null>(null)
 
+  const [configData, setConfigData] = useState<Record<string, string>>({})
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configSaved, setConfigSaved] = useState(false)
+  const [configError, setConfigError] = useState<string | null>(null)
+
+  const fetchPreview = useCallback((md: string) => {
+    previewTemplateHtml(md).then(setPreviewHtml).catch(() => {})
+  }, [])
+
   useEffect(() => {
-    Promise.all([listTemplates(), getDecisionTree()])
-      .then(([tmpls, rawTree]) => {
+    const id = setTimeout(() => fetchPreview(bodyMd), 400)
+    return () => clearTimeout(id)
+  }, [bodyMd, fetchPreview])
+
+  useEffect(() => {
+    Promise.all([listTemplates(), getDecisionTree(), getConfig()])
+      .then(([tmpls, rawTree, cfg]) => {
         setTemplates(tmpls as Template[])
         if (rawTree && typeof rawTree === 'object') {
           setTree(rawTree as TreeNode)
           setTreeYaml(yaml.dump(rawTree))
         }
+        setConfigData(cfg.data ?? {})
       })
       .catch(() => setLoadError('Failed to load config. Is the server running?'))
       .finally(() => setLoading(false))
@@ -55,6 +78,7 @@ export default function Config() {
     setBodyMd(t.body_md ?? '')
     setTmplSaved(false)
     setTmplError(null)
+    fetchPreview(t.body_md ?? '')
   }
 
   function handleTreeChange(newTree: TreeNode) {
@@ -78,6 +102,31 @@ export default function Config() {
     }
   }
 
+  async function handleCreateTemplate() {
+    const name = newName.trim()
+    if (!name) return
+    setNewNameError(null)
+    try {
+      const created = await createTemplate(name, { subject: '', body_md: '' })
+      setTemplates((ts) => [...ts, created].sort((a, b) => a.name.localeCompare(b.name)))
+      setNewName('')
+      selectTemplate(created.name)
+    } catch (err) {
+      setNewNameError(String(err))
+    }
+  }
+
+  async function handleDeleteTemplate(name: string) {
+    if (!window.confirm(`Delete template "${name}"? This cannot be undone.`)) return
+    await deleteTemplate(name)
+    setTemplates((ts) => ts.filter((t) => t.name !== name))
+    if (selectedName === name) {
+      setSelectedName(null)
+      setSubject('')
+      setBodyMd('')
+    }
+  }
+
   async function handleSaveTemplate() {
     if (!selectedName) return
     setTmplSaving(true)
@@ -90,6 +139,20 @@ export default function Config() {
       setTmplError(String(err))
     } finally {
       setTmplSaving(false)
+    }
+  }
+
+  async function handleSaveConfig() {
+    setConfigSaving(true)
+    setConfigError(null)
+    try {
+      const res = await updateConfig(configData)
+      setConfigData(res.data ?? {})
+      setConfigSaved(true)
+    } catch (err) {
+      setConfigError(String(err))
+    } finally {
+      setConfigSaving(false)
     }
   }
 
@@ -134,7 +197,16 @@ export default function Config() {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Templates</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Templates</h2>
+            <Link
+              to="/guide/templates"
+              className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5 transition-colors"
+              title="Template writing guide"
+            >
+              Guide
+            </Link>
+          </div>
           <button
             onClick={() => download(JSON.stringify(templates, null, 2), 'templates.json', 'application/json')}
             disabled={templates.length === 0}
@@ -144,28 +216,59 @@ export default function Config() {
           </button>
         </div>
         <div className="flex border border-gray-200 rounded-lg overflow-hidden min-h-64">
-          <div className="w-52 shrink-0 border-r border-gray-200 overflow-y-auto">
-            {loading ? (
-              <div className="p-3 text-sm text-gray-400">Loading…</div>
-            ) : loadError ? (
-              <div className="p-3 text-sm text-red-600">{loadError}</div>
-            ) : templates.length === 0 ? (
-              <div className="p-3 text-sm text-gray-400">No templates.</div>
-            ) : (
-              templates.map((t) => (
-                <button
-                  key={t.name}
-                  onClick={() => selectTemplate(t.name)}
-                  className={`w-full text-left px-3 py-2.5 text-sm border-b border-gray-100 truncate transition-colors ${
-                    selectedName === t.name
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {t.name}
-                </button>
-              ))
-            )}
+          <div className="w-52 shrink-0 border-r border-gray-200 flex flex-col">
+            <div className="overflow-y-auto flex-1">
+              {loading ? (
+                <div className="p-3 text-sm text-gray-400">Loading…</div>
+              ) : loadError ? (
+                <div className="p-3 text-sm text-red-600">{loadError}</div>
+              ) : templates.length === 0 ? (
+                <div className="p-3 text-sm text-gray-400">No templates.</div>
+              ) : (
+                templates.map((t) => (
+                  <div key={t.name} className="relative group border-b border-gray-100">
+                    <button
+                      onClick={() => selectTemplate(t.name)}
+                      className={`w-full text-left px-3 py-2.5 text-sm truncate transition-colors pr-7 ${
+                        selectedName === t.name
+                          ? 'bg-blue-50 text-blue-700 font-medium'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                    <button
+                      aria-label={`Delete template ${t.name}`}
+                      onClick={() => void handleDeleteTemplate(t.name)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100
+                                 text-gray-400 hover:text-red-600 transition-all p-0.5 text-base leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="border-t border-gray-200 p-2 space-y-1">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => { setNewName(e.target.value); setNewNameError(null) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleCreateTemplate() }}
+                placeholder="new_template_name"
+                className="w-full px-2 py-1 text-xs border border-gray-300 rounded
+                           focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+              />
+              {newNameError && <p className="text-xs text-red-600 truncate">{newNameError}</p>}
+              <button
+                onClick={() => void handleCreateTemplate()}
+                disabled={!newName.trim()}
+                className="w-full py-1 text-xs font-medium text-blue-600 border border-blue-300
+                           rounded hover:bg-blue-50 disabled:opacity-40 transition-colors"
+              >
+                + New template
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 p-4 space-y-3">
@@ -179,6 +282,12 @@ export default function Config() {
                     type="text"
                     value={subject}
                     onChange={(e) => { setSubject(e.target.value); setTmplSaved(false) }}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                        e.preventDefault()
+                        void handleSaveTemplate()
+                      }
+                    }}
                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -186,8 +295,15 @@ export default function Config() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Body (Markdown)</label>
                   <textarea
-                    value={bodyMd}
+                    key={selectedName ?? ''}
+                    defaultValue={bodyMd}
                     onChange={(e) => { setBodyMd(e.target.value); setTmplSaved(false) }}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                        e.preventDefault()
+                        void handleSaveTemplate()
+                      }
+                    }}
                     rows={8}
                     className="w-full px-3 py-1.5 text-sm font-mono border border-gray-300 rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
@@ -197,10 +313,15 @@ export default function Config() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Preview</label>
                   <iframe
-                    srcDoc={marked(bodyMd) as string}
-                    sandbox=""
+                    srcDoc={previewHtml}
+                    sandbox="allow-same-origin"
+                    onLoad={(e) => {
+                      const el = e.currentTarget
+                      const h = el.contentDocument?.body?.scrollHeight
+                      if (h) el.style.height = h + 32 + 'px'
+                    }}
                     title="Template preview"
-                    className="w-full h-48 border border-gray-200 rounded-lg bg-white"
+                    className="w-full border border-gray-200 rounded-lg bg-white min-h-[480px]"
                   />
                 </div>
                 <div className="flex items-center gap-3">
@@ -224,7 +345,16 @@ export default function Config() {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Decision Tree</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Decision Tree</h2>
+            <Link
+              to="/guide/decision-tree"
+              className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded px-2 py-0.5 transition-colors"
+              title="Decision tree guide"
+            >
+              Guide
+            </Link>
+          </div>
           <button
             onClick={() => download(treeYaml, 'decision_tree.yaml', 'text/yaml')}
             disabled={!tree}
@@ -332,6 +462,57 @@ export default function Config() {
               </table>
             </div>
           )}
+        </div>
+      </section>
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Settings</h2>
+        <div className="border border-gray-200 rounded-lg p-4 space-y-4 max-w-lg">
+          {[
+            { key: 'label', label: 'Pipeline label', type: 'text', placeholder: 'e.g. Production' },
+            { key: 'spreadsheet_id', label: 'Google Sheets ID', type: 'text', placeholder: 'Spreadsheet ID from URL' },
+            { key: 'hubspot_access_token', label: 'HubSpot access token', type: 'password', placeholder: 'pat-…' },
+            { key: 'max_messages', label: 'Max messages per run', type: 'number', placeholder: '50' },
+          ].map(({ key, label, type, placeholder }) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+              <input
+                type={type}
+                value={configData[key] ?? ''}
+                onChange={(e) => {
+                  setConfigData((d) => ({ ...d, [key]: e.target.value }))
+                  setConfigSaved(false)
+                }}
+                placeholder={placeholder}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <input
+              id="auto_send"
+              type="checkbox"
+              checked={configData['auto_send'] === 'true'}
+              onChange={(e) => {
+                setConfigData((d) => ({ ...d, auto_send: e.target.checked ? 'true' : 'false' }))
+                setConfigSaved(false)
+              }}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="auto_send" className="text-sm text-gray-700">Auto-send emails after pipeline run</label>
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={() => void handleSaveConfig()}
+              disabled={configSaving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium
+                         hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {configSaving ? 'Saving…' : 'Save'}
+            </button>
+            {configSaved && <span className="text-sm text-green-700">Saved.</span>}
+            {configError && <span className="text-sm text-red-600">{configError}</span>}
+          </div>
         </div>
       </section>
     </div>

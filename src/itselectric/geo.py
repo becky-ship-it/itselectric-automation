@@ -79,6 +79,28 @@ def extract_state_from_address(address: str | None) -> str | None:
     return None
 
 
+def parse_address_components(address: str) -> dict[str, str]:
+    """
+    Split a US address string into street, city, state, and zip.
+    Expected format: '123 Main St, City, ST 12345' or '123 Main St, City, ST'.
+    Falls back gracefully — missing parts return empty strings.
+    """
+    address = (address or "").strip()
+    # street, city, ST 12345
+    m = re.match(r"^(.+?),\s*(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$", address)
+    if m:
+        return {"street": m.group(1), "city": m.group(2), "state": m.group(3).upper(), "zip": m.group(4)}
+    # street, city, ST  (no zip)
+    m = re.match(r"^(.+?),\s*(.+?),\s*([A-Za-z]{2})$", address)
+    if m:
+        return {"street": m.group(1), "city": m.group(2), "state": m.group(3).upper(), "zip": ""}
+    # street, city  (no state/zip)
+    m = re.match(r"^(.+?),\s*(.+)$", address)
+    if m:
+        return {"street": m.group(1), "city": m.group(2), "state": "", "zip": ""}
+    return {"street": address, "city": "", "state": "", "zip": ""}
+
+
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0")
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)
 

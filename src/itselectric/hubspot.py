@@ -30,7 +30,9 @@ def upsert_contact(
     since partial upserts are not supported with email as idProperty.
     Returns the contact ID, or None on error.
     """
+    from src.itselectric.geo import parse_address_components
     firstname, lastname = _split_name(name)
+    parts = parse_address_components(address)
     try:
         resp = requests.post(
             f"{_BASE}/crm/v3/objects/contacts/batch/upsert",
@@ -44,7 +46,11 @@ def upsert_contact(
                             "email": email,
                             "firstname": firstname,
                             "lastname": lastname,
-                            "address": address,
+                            "address": parts["street"],
+                            "city": parts["city"],
+                            "state": parts["state"],
+                            "zip": parts["zip"],
+                            "form_selection": "EV Driver",
                         },
                     }
                 ]

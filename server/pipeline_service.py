@@ -12,7 +12,8 @@ from src.itselectric.auth import get_credentials
 from src.itselectric.decision_tree import evaluate as evaluate_tree
 from src.itselectric.extract import extract_parsed
 from src.itselectric.geo import extract_state_from_address, find_nearest_charger, geocode_address
-from src.itselectric.gmail import body_to_plain, fetch_messages, get_body_from_payload
+from src.itselectric.gmail import body_to_plain, fetch_messages, get_body_from_payload, send_email
+from src.itselectric.hubspot import upsert_contact as hs_upsert
 
 
 def _chargers_from_db(session: Session) -> list[dict]:
@@ -69,6 +70,7 @@ def run_pipeline(
 
     chargers = _chargers_from_db(session)
     creds = get_credentials()
+    hs_token = _get_config(session, "hubspot_access_token")
 
     if fixture_messages is not None:
         messages = fixture_messages
@@ -81,6 +83,9 @@ def run_pipeline(
 
     for msg in messages:
         msg_id = msg.get("id", "")
+        if not msg_id:
+            log("Skipping message with no id")
+            continue
 
         if session.query(Contact).filter_by(id=msg_id).first():
             log(f"Skipping already-processed message {msg_id}")
@@ -118,6 +123,13 @@ def run_pipeline(
             contact.email_form = parsed["email_2"]
 
             log(f"  Processing: {parsed['name']} / {parsed['address']}")
+
+            if hs_token and contact.email_primary:
+                hs_id = hs_upsert(hs_token, parsed["name"], contact.email_primary, parsed["address"])
+                contact.hubspot_status = "synced" if hs_id else "failed"
+                log(f"  HubSpot: {'synced (' + hs_id + ')' if hs_id else 'failed'}")
+            elif not hs_token:
+                log("  HubSpot: skipped (no token configured)")
 
             coords = _geocode_with_db_cache(parsed["address"], session)
             if coords:
@@ -160,17 +172,18 @@ def run_pipeline(
                 tmpl = session.query(Template).filter_by(name=template_name).first()
                 subject = tmpl.subject if tmpl else ""
                 body = tmpl.body_md if tmpl else ""
-                try:
-                    body = body.format_map(
-                        {
-                            "name": parsed["name"],
-                            "address": parsed["address"],
-                            "city": charger_city or "",
-                            "state": driver_state or "",
-                        }
-                    )
-                except KeyError:
-                    pass
+
+                class _SafeDict(dict):
+                    def __missing__(self, key: str) -> str:
+                        return f'{{{key}}}'
+
+                body = body.format_map(_SafeDict(
+                    name=parsed["name"],
+                    address=parsed["address"],
+                    city=charger_city or "",
+                    state=driver_state or "",
+                ))
+                from src.itselectric.email_layout import render_email
                 outbound = OutboundEmail(
                     contact_id=msg_id,
                     template_name=template_name,
@@ -181,6 +194,18 @@ def run_pipeline(
                 )
                 session.add(outbound)
                 log(f"  → Queued email: {template_name}")
+
+                if auto_send and contact.email_primary:
+                    try:
+                        ok = send_email(creds, contact.email_primary, subject, render_email(body))
+                        outbound.status = "sent" if ok else "failed"
+                        outbound.sent_at = datetime.now(timezone.utc)
+                        outbound.sent_by = "auto"
+                        log(f"  → Auto-sent to {contact.email_primary}: {'ok' if ok else 'failed'}")
+                    except Exception as exc:
+                        outbound.status = "failed"
+                        outbound.error_message = str(exc)
+                        log(f"  → Auto-send failed: {exc}")
 
         processed.append(msg_id)
 

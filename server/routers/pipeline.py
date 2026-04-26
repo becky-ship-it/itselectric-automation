@@ -56,6 +56,9 @@ async def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
     if decision_tree is None:
         log_store.append("Warning: no decision tree in DB — emails will not be routed")
 
+    _auto_send_row = db.query(AppConfig).filter_by(key="auto_send").first()
+    auto_send = (_auto_send_row.value or "").lower() in ("1", "true", "yes") if _auto_send_row else False
+
     fixture_messages = None
     if fixture:
         from src.itselectric.fixture import load_fixture_messages
@@ -77,6 +80,7 @@ async def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
             run_pipeline(
                 db,
                 decision_tree=decision_tree,
+                auto_send=auto_send,
                 log=_log,
                 fixture_messages=fixture_messages,
             )

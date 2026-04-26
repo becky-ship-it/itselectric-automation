@@ -44,6 +44,7 @@ class ContactOut(BaseModel):
     distance_miles: float | None
     geocache_hit: bool
     hubspot_status: str | None
+    outbound_status: str | None = None
 
     model_config = {"from_attributes": True}
 

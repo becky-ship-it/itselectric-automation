@@ -19,6 +19,8 @@ vi.mock('../api/client', () => ({
       { id: 'msg2', name: null, address: null, parsed: false, template: null },
     ],
   }),
+  getConfig: vi.fn().mockResolvedValue({ data: { label: 'Test', max_messages: '10', auto_send: 'false' } }),
+  updateConfig: vi.fn().mockResolvedValue({ data: { label: 'Test', max_messages: '10', auto_send: 'false' } }),
 }))
 
 async function openYamlPanel() {

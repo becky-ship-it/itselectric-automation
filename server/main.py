@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.db import Base, get_engine, get_session
@@ -54,4 +55,11 @@ app.include_router(export.router, prefix="/api", tags=["export"])
 app.include_router(logs.router, prefix="/api", tags=["logs"])
 
 if os.path.exists("web/dist"):
-    app.mount("/", StaticFiles(directory="web/dist", html=True), name="static")
+    app.mount("/assets", StaticFiles(directory="web/dist/assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        candidate = Path("web/dist") / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse("web/dist/index.html")

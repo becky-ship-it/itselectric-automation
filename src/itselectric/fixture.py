@@ -29,6 +29,7 @@ def load_fixture_messages(directory) -> list[dict]:
         mtime_ms = int(txt_file.stat().st_mtime * 1000)
         messages.append(
             {
+                "id": f"fixture:{txt_file.stem}",
                 "internalDate": str(mtime_ms),
                 "payload": {
                     "mimeType": "text/plain",

@@ -12,10 +12,10 @@ vi.mock('../api/client', () => ({
       nearest_charger_id: 1, distance_miles: 2.4, geocache_hit: true, hubspot_status: null,
     },
     {
-      id: 'msg2', name: null, address: null,
-      email_primary: null, parse_status: 'unparsed',
-      received_at: null, email_form: 'bob@test.com', raw_body: null,
-      nearest_charger_id: null, distance_miles: null, geocache_hit: false, hubspot_status: null,
+      id: 'msg2', name: 'Bob Jones', address: '456 Oak Ave, NYC',
+      email_primary: 'bob@example.com', parse_status: 'parsed',
+      received_at: '2026-04-19T08:00:00Z', email_form: null, raw_body: null,
+      nearest_charger_id: 2, distance_miles: 5.1, geocache_hit: true, hubspot_status: null,
     },
   ]),
   previewImport: vi.fn().mockResolvedValue({
@@ -23,12 +23,13 @@ vi.mock('../api/client', () => ({
     preview: { new_chargers: 3, new_contacts: 5, new_templates: 1 },
   }),
   confirmImport: vi.fn().mockResolvedValue({ ok: true }),
+  deleteContact: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 test('shows all contacts in table after load', async () => {
   render(<History />)
   expect(await screen.findByText('Alice Smith')).toBeInTheDocument()
-  expect(screen.getByText('(unparsed)')).toBeInTheDocument()
+  expect(screen.getByText('Bob Jones')).toBeInTheDocument()
 })
 
 test('search by name filters out non-matching contacts', async () => {
@@ -36,7 +37,7 @@ test('search by name filters out non-matching contacts', async () => {
   await screen.findByText('Alice Smith')
   await userEvent.type(screen.getByPlaceholderText(/search/i), 'Alice')
   expect(screen.getByText('Alice Smith')).toBeInTheDocument()
-  expect(screen.queryByText('(unparsed)')).not.toBeInTheDocument()
+  expect(screen.queryByText('Bob Jones')).not.toBeInTheDocument()
 })
 
 test('search by email filters contacts', async () => {
@@ -44,7 +45,7 @@ test('search by email filters contacts', async () => {
   await screen.findByText('Alice Smith')
   await userEvent.type(screen.getByPlaceholderText(/search/i), 'alice@example')
   expect(screen.getByText('alice@example.com')).toBeInTheDocument()
-  expect(screen.queryByText('(unparsed)')).not.toBeInTheDocument()
+  expect(screen.queryByText('bob@example.com')).not.toBeInTheDocument()
 })
 
 test('export links point to API endpoints', async () => {
