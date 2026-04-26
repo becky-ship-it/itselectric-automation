@@ -22,8 +22,11 @@ dist/
 .pytest_cache/
 .coverage
 
-# PyInstaller build output
+# PyInstaller / build output
 build/
+dist/
+venv/
+*.spec
 *.spec.bak
 
 # macOS

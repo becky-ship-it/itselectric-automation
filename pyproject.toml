@@ -25,10 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "pyinstaller>=6.0", "types-PyYAML>=6.0"]
-
-[project.scripts]
-itselectric = "itselectric.cli:main"
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "types-PyYAML>=6.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/itselectric"]

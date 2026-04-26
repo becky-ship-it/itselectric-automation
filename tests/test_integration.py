@@ -20,11 +20,10 @@ from pathlib import Path
 import pytest  # type: ignore
 import yaml  # type: ignore
 
-from itselectric.cli import _build_tree_context  # type: ignore
 from itselectric.decision_tree import evaluate
 from itselectric.extract import extract_parsed
 from itselectric.fixture import load_fixture_messages
-from itselectric.geo import find_nearest_charger, geocode_address, load_chargers
+from itselectric.geo import extract_state_from_address, find_nearest_charger, geocode_address, load_chargers
 from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "emails"
@@ -70,7 +69,7 @@ def chargers():
 class TestFullPipeline:
     def test_loads_correct_number_of_messages(self):
         messages = load_fixture_messages(FIXTURES_DIR)
-        assert len(messages) == 10
+        assert len(messages) == 11
 
     def test_parsed_messages_extract_correctly(self, geocache_file, chargers):
         """Parsed fixture emails produce correct name/address/email fields."""
@@ -85,7 +84,7 @@ class TestFullPipeline:
             if parsed:
                 parsed_rows.append(parsed)
 
-        assert len(parsed_rows) == 9  # all fixtures except 03_unparsed
+        assert len(parsed_rows) == 9  # all fixtures except 03_unparsed and 11_bad_email
         names = {r["name"] for r in parsed_rows}
         assert "Jane Smith" in names
         assert "Bob Jones" in names
@@ -99,7 +98,7 @@ class TestFullPipeline:
             plain = body_to_plain(mime, body_text)
             if extract_parsed(plain) is None:
                 unparsed_count += 1
-        assert unparsed_count == 1
+        assert unparsed_count == 2  # 03_unparsed_contact and 11_bad_email
 
     def test_geocode_uses_cache_not_network(self, geocache_file):
         """geocode_address reads from the pre-populated cache file (no Nominatim call)."""
@@ -156,7 +155,7 @@ class TestFullPipeline:
             else:
                 rows.append((sent_date, "", "", "", "", plain, "", ""))
 
-        assert len(rows) == 10
+        assert len(rows) == 11
         # Parsed rows have real names
         parsed_rows = [r for r in rows if r[1]]
         assert len(parsed_rows) == 9
@@ -227,11 +226,12 @@ class TestDecisionTreeRouting:
                 continue
 
             charger_dict, dist = result
-            ctx = _build_tree_context(
-                address=parsed["address"],
-                charger_dict=charger_dict,
-                distance_miles=dist,
-            )
+            ctx = {
+                "driver_state": extract_state_from_address(parsed["address"]),
+                "charger_state": charger_dict["state"],
+                "charger_city": charger_dict["city"],
+                "distance_miles": dist,
+            }
             results[parsed["address"]] = evaluate(self.tree, ctx)
 
         for address, expected in self._EXPECTED.items():

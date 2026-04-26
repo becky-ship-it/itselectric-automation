@@ -6,5 +6,33 @@
   "15 Washington St., Brooklyn, NY 11205": [
     40.7035638,
     -73.9893629
+  ],
+  "1 Cambridge St, Boston, MA 02114": [
+    42.36129,
+    -71.069257
+  ],
+  "1100 16th St NW, Washington, DC 20036": [
+    38.9039136,
+    -77.0368197
+  ],
+  "123 N Vermont Ave, Los Angeles, CA 90004": [
+    34.0731943,
+    -118.2917741
+  ],
+  "1 Atlantic Ave, Brooklyn, NY 11201": [
+    40.691412,
+    -73.998288
+  ],
+  "1 Woodward Ave, Detroit, MI 48226": [
+    42.3289254,
+    -83.0454824
+  ],
+  "100 N Michigan Ave, Chicago, IL 60601": [
+    41.8826853,
+    -87.6245167
+  ],
+  "100 Washington St, Hoboken, NJ 07030": [
+    40.7376158,
+    -74.0310672
   ]
 }
