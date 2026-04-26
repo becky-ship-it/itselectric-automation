@@ -46,6 +46,7 @@ export default function Config() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configSaved, setConfigSaved] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
+  const [showToken, setShowToken] = useState(false)
 
   const fetchPreview = useCallback((md: string) => {
     previewTemplateHtml(md).then(setPreviewHtml).catch(() => {})
@@ -470,7 +471,6 @@ export default function Config() {
           {[
             { key: 'label', label: 'Pipeline label', type: 'text', placeholder: 'e.g. Production' },
             { key: 'spreadsheet_id', label: 'Google Sheets ID', type: 'text', placeholder: 'Spreadsheet ID from URL' },
-            { key: 'hubspot_access_token', label: 'HubSpot access token', type: 'password', placeholder: 'pat-…' },
             { key: 'max_messages', label: 'Max messages per run', type: 'number', placeholder: '50' },
           ].map(({ key, label, type, placeholder }) => (
             <div key={key}>
@@ -488,6 +488,30 @@ export default function Config() {
               />
             </div>
           ))}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">HubSpot access token</label>
+            <div className="flex gap-2">
+              <input
+                type={showToken ? 'text' : 'password'}
+                value={configData['hubspot_access_token'] ?? ''}
+                onChange={(e) => {
+                  setConfigData((d) => ({ ...d, hubspot_access_token: e.target.value }))
+                  setConfigSaved(false)
+                }}
+                placeholder="pat-na1-..."
+                className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken((v) => !v)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300
+                           rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {showToken ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <input
               id="auto_send"
