@@ -99,7 +99,9 @@ def get_contact(contact_id: str, db: DbDep):
     rendered = []
     for e in outbound:
         out = OutboundEmailOut.model_validate(e)
-        tmpl = db.query(Template).filter_by(name=e.template_name).first() if e.template_name else None
+        tmpl = (
+            db.query(Template).filter_by(name=e.template_name).first() if e.template_name else None
+        )
         body_md = (tmpl.body_md if tmpl else None) or e.body_html or ""
         out.body_html = render_email(body_md.format_map(_vars))
         rendered.append(out)
@@ -303,8 +305,11 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
     contact.parse_status = "parsed"
 
     # Geocode and find nearest charger
-    from src.itselectric.geo import extract_state_from_address, find_nearest_charger, geocode_address
-    from server.models import GeoCache
+    from src.itselectric.geo import (
+        extract_state_from_address,
+        find_nearest_charger,
+        geocode_address,
+    )
 
     chargers_rows = db.query(Charger).all()
     chargers = [
@@ -371,7 +376,9 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
                 state=driver_state or "",
             ))
             # Replace any existing pending outbound, or create new
-            existing = db.query(OutboundEmail).filter_by(contact_id=contact_id, status="pending").first()
+            existing = (
+                db.query(OutboundEmail).filter_by(contact_id=contact_id, status="pending").first()
+            )
             if existing:
                 existing.template_name = template_name
                 existing.routed_template = template_name
@@ -389,6 +396,11 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
 
     db.commit()
     out = ContactOut.model_validate(contact)
-    latest = db.query(OutboundEmail).filter_by(contact_id=contact_id).order_by(OutboundEmail.id.desc()).first()
+    latest = (
+        db.query(OutboundEmail)
+        .filter_by(contact_id=contact_id)
+        .order_by(OutboundEmail.id.desc())
+        .first()
+    )
     out.outbound_status = latest.status if latest else None
     return out

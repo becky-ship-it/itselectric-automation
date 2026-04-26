@@ -89,7 +89,10 @@ def parse_address_components(address: str) -> dict[str, str]:
     # street, city, ST 12345
     m = re.match(r"^(.+?),\s*(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$", address)
     if m:
-        return {"street": m.group(1), "city": m.group(2), "state": m.group(3).upper(), "zip": m.group(4)}
+        return {
+            "street": m.group(1), "city": m.group(2),
+            "state": m.group(3).upper(), "zip": m.group(4),
+        }
     # street, city, ST  (no zip)
     m = re.match(r"^(.+?),\s*(.+?),\s*([A-Za-z]{2})$", address)
     if m:

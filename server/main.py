@@ -10,7 +10,13 @@ from fastapi.staticfiles import StaticFiles
 
 from server.db import Base, get_engine, get_session
 from server.routers import chargers, config, contacts, export, logs, pipeline, templates
-from server.seed import seed_chargers, seed_config, seed_decision_tree_from_yaml, seed_geocache, seed_templates_from_yaml
+from server.seed import (
+    seed_chargers,
+    seed_config,
+    seed_decision_tree_from_yaml,
+    seed_geocache,
+    seed_templates_from_yaml,
+)
 
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///data/itselectric.db")
 GEOCACHE_PATH = os.getenv("GEOCACHE_PATH", "geocache.json")

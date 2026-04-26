@@ -6,14 +6,14 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from sqlalchemy.orm import Session
-
-from server.models import AppConfig, Charger, Contact, GeoCache, OutboundEmail, Template
 from src.itselectric.auth import get_credentials
 from src.itselectric.decision_tree import evaluate as evaluate_tree
 from src.itselectric.extract import extract_parsed
 from src.itselectric.geo import extract_state_from_address, find_nearest_charger, geocode_address
 from src.itselectric.gmail import body_to_plain, fetch_messages, get_body_from_payload, send_email
 from src.itselectric.hubspot import upsert_contact as hs_upsert
+
+from server.models import AppConfig, Charger, Contact, GeoCache, OutboundEmail, Template
 
 
 def _chargers_from_db(session: Session) -> list[dict]:
@@ -124,7 +124,9 @@ def run_pipeline(
             log(f"  Processing: {parsed['name']} / {parsed['address']}")
 
             if hs_token and contact.email_primary:
-                hs_id = hs_upsert(hs_token, parsed["name"], contact.email_primary, parsed["address"])
+                hs_id = hs_upsert(
+                    hs_token, parsed["name"], contact.email_primary, parsed["address"]
+                )
                 contact.hubspot_status = "synced" if hs_id else "failed"
                 log(f"  HubSpot: {'synced (' + hs_id + ')' if hs_id else 'failed'}")
             elif not hs_token:

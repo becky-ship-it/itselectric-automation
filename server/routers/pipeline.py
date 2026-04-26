@@ -57,7 +57,9 @@ async def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
         log_store.append("Warning: no decision tree in DB — emails will not be routed")
 
     _auto_send_row = db.query(AppConfig).filter_by(key="auto_send").first()
-    auto_send = (_auto_send_row.value or "").lower() in ("1", "true", "yes") if _auto_send_row else False
+    auto_send = (
+        (_auto_send_row.value or "").lower() in ("1", "true", "yes") if _auto_send_row else False
+    )
 
     fixture_messages = None
     if fixture:

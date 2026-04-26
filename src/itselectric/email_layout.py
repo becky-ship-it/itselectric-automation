@@ -7,6 +7,8 @@ _LOGO_URL = (
     "/63b48312971b511607d06d8d_ItsElectric%20Logo1000.svg"
 )
 
+_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+
 _HEADER = f"""\
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr>
@@ -38,14 +40,14 @@ _FOOTER = f"""\
                  style="display:block;border:0;outline:none;" />
           </td>
           <td style="vertical-align:middle;">
-            <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;\
-font-size:15px;font-weight:700;color:#ffffff;">it's electric</span>
+            <span style="font-family:{_FONT};font-size:15px;font-weight:700;\
+color:#ffffff;">it's electric</span>
           </td>
         </tr>
       </table>
-      <p style="margin:12px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;\
+      <p style="margin:12px 0 4px;font-family:{_FONT};\
 font-size:12px;color:rgba(255,255,255,0.5);">The Future. It's Electric.</p>
-      <p style="margin:16px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;\
+      <p style="margin:16px 0 0;font-family:{_FONT};\
 font-size:11px;color:rgba(255,255,255,0.35);">
         Questions? Reply to this email.
         &nbsp;·&nbsp;

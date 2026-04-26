@@ -1,34 +1,60 @@
 # Configuration
 
-All settings live in `config.yaml` (copied from `config.example.yaml`). CLI flags override config values when both are present. `config.yaml` is gitignored — never commit it.
+All settings are stored in the database and managed through the web UI at `/config`. There is no config file to edit at runtime.
+
+## Initial seeding
+
+On first startup, the server reads `config.yaml` (if it exists) and seeds any keys it finds into the `AppConfig` database table. Subsequent restarts skip keys that already exist in the DB — edit them via the web UI instead.
 
 ```bash
 cp config.example.yaml config.yaml
+# Edit config.yaml, then start the server — values are seeded once
 ```
 
-## Options
+`config.yaml` is gitignored. After the initial seed it is no longer read.
 
-| Key | Default | CLI flag | Description |
-|-----|---------|----------|-------------|
-| `label` | `INBOX` | `--label` | Gmail label to read (`INBOX`, `Follow Up`, etc.) |
-| `max_messages` | `100` | `--max-messages` | Maximum number of messages to fetch |
-| `body_length` | `200` | `--body-length` | Max characters of body to print per message (0 = no limit) |
-| `spreadsheet_id` | `""` | `--spreadsheet-id` | Google Spreadsheet ID from the sheet URL. If empty, runs in preview-only mode |
-| `sheet` | `Sheet1` | `--sheet` | Sheet (tab) name within the spreadsheet |
-| `content_limit` | `5000` | `--content-limit` | Max characters for the Content column |
-| `chargers` | *(bundled CSV)* | `--chargers` | Path to chargers CSV. Defaults to the bundled `src/itselectric/data/chargers.csv` |
-| `geocache` | `geocache.json` | `--geocache` | Path to JSON file for caching geocoded addresses. Created automatically on first run |
-| `fixture_dir` | `""` | `--fixture-dir` | Load emails from `.txt` files instead of Gmail. Skips all Google auth |
-| `hubspot_access_token` | `""` | `--hubspot-access-token` | HubSpot access token. When set, creates/updates a CRM contact for every parsed email |
+## Config keys
 
-The spreadsheet ID is the long string in the sheet URL:
-```
-https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit
-```
+| Key | Default | Description |
+|-----|---------|-------------|
+| `gmail_label` | `INBOX` | Gmail label to fetch messages from |
+| `max_messages` | `100` | Max messages per pipeline run |
+| `hubspot_access_token` | `""` | HubSpot Private App token. Empty = skip HubSpot sync |
+| `auto_send` | `false` | Send follow-up emails automatically during pipeline runs |
+| `google_doc_id` | `""` | Google Doc ID for email templates (overrides built-in templates when set) |
+| `spreadsheet_id` | `""` | Google Sheets ID for legacy row export (optional) |
+| `content_limit` | `5000` | Max characters stored in the email body column |
+
+## Decision tree
+
+The decision tree is seeded from `decision_tree.yaml` on first startup, then stored in the DB. Edit it live via the web UI at `/config` → Decision Tree section. Changes take effect on the next pipeline run.
+
+`decision_tree.yaml` is the seed source only — the DB is the live source of truth after first run.
+
+See the in-app [Decision Tree Guide](/guide/decision-tree) for syntax reference.
+
+## Email templates
+
+Templates are seeded with empty bodies from the leaf node names in `decision_tree.yaml`. Edit them via the web UI at `/config` → Templates section.
+
+Template variables:
+
+| Variable | Value |
+|----------|-------|
+| `{name}` | Contact's extracted name |
+| `{address}` | Contact's extracted address |
+| `{city}` | Nearest charger city |
+| `{state}` | Contact's driver state |
+
+Unknown variables are left as-is (no error).
+
+See the in-app [Email Template Guide](/guide/templates) for full authoring instructions.
 
 ## Geocoding cache
 
-Addresses are geocoded using [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap), rate-limited to 1 request/second. Results are cached in `geocache.json` so each address is only looked up once:
+Addresses are geocoded using [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap), rate-limited to 1 req/sec. Results are cached in the `GeoCache` DB table — each address is only looked up once across all pipeline runs.
+
+If `geocache.json` exists in the repo root on first startup, it is imported into the DB automatically. Format:
 
 ```json
 {
@@ -36,23 +62,23 @@ Addresses are geocoded using [Nominatim](https://nominatim.openstreetmap.org/) (
 }
 ```
 
-You can pre-populate this file with known addresses to avoid any API calls entirely.
+## Google credentials
 
-## Chargers CSV format
+`credentials.json` (OAuth 2.0 Desktop client secrets from Google Cloud Console) and `token.json` (saved auth tokens) are gitignored. Place them in the repo root.
 
-The bundled `src/itselectric/data/chargers.csv` has these columns:
+Required OAuth scopes:
 
-| Column | Description |
-|--------|-------------|
-| `STREET` | Street address |
-| `CITY` | City |
-| `STATE` | State abbreviation |
-| `ZIPCODE` | ZIP code |
-| `CHARGERID` | Charger ID(s) at this location |
-| `NUM_OF_CHARGERS` | Number of chargers |
-| `LAT` | Latitude |
-| `LONG` | Longitude |
-| `LAT_OVERRIDE` | Corrected latitude (overrides `LAT` when non-empty) |
-| `LONG_OVERRIDE` | Corrected longitude (overrides `LONG` when non-empty) |
+| Scope | Purpose |
+|-------|---------|
+| `gmail.modify` | Read + label Gmail messages |
+| `gmail.send` | Send reply emails |
+| `spreadsheets` | Read/write Google Sheets (if using legacy export) |
+| `drive.readonly` | Export Google Docs for email templates |
 
-To use a custom charger list, provide a CSV with the same columns and set `chargers` in `config.yaml`.
+## Chargers CSV
+
+Charger locations are seeded from `src/itselectric/data/chargers.csv` into the `Charger` DB table on startup (idempotent). The bundled CSV has 26 entries across the US and Canada.
+
+CSV columns: `STREET`, `CITY`, `STATE`, `ZIPCODE`, `CHARGERID`, `NUM_OF_CHARGERS`, `LAT`, `LONG`, `LAT_OVERRIDE`, `LONG_OVERRIDE`. Use `LAT_OVERRIDE`/`LONG_OVERRIDE` to correct coordinates without changing source data.
+
+The charger list is read-only at runtime — modify the CSV and restart to update.

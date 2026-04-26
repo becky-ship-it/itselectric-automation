@@ -23,7 +23,12 @@ import yaml  # type: ignore
 from itselectric.decision_tree import evaluate
 from itselectric.extract import extract_parsed
 from itselectric.fixture import load_fixture_messages
-from itselectric.geo import extract_state_from_address, find_nearest_charger, geocode_address, load_chargers
+from itselectric.geo import (
+    extract_state_from_address,
+    find_nearest_charger,
+    geocode_address,
+    load_chargers,
+)
 from itselectric.gmail import body_to_plain, format_sent_date, get_body_from_payload
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "emails"

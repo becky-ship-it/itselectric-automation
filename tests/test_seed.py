@@ -95,7 +95,9 @@ def test_seed_decision_tree_from_yaml_inserts_when_absent(session, tmp_path):
 def test_seed_decision_tree_from_yaml_skips_when_present(session, tmp_path):
     yaml_file = tmp_path / "tree.yaml"
     yaml_file.write_text("template: new\n")
-    session.add(AppConfig(key="__decision_tree_json__", value=json.dumps({"template": "already_here"})))
+    session.add(AppConfig(
+        key="__decision_tree_json__", value=json.dumps({"template": "already_here"})
+    ))
     session.flush()
     count = seed_decision_tree_from_yaml(session, str(yaml_file))
     assert count == 0
