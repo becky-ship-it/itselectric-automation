@@ -59,9 +59,9 @@ For initial seeding, `config.yaml` (gitignored) is read once on server startup. 
 ## Running tests
 
 ```bash
-uv run pytest tests/ -v    # 207 Python tests (no network calls)
-cd web && npm test          # Vitest unit tests
-cd web && npx playwright test  # E2E tests (server must be running)
+uv run pytest tests/ -v            # 207 Python tests (no network calls)
+(cd web && npm test)              # Vitest unit tests
+(cd web && npx playwright test)   # E2E tests (server must be running)
 ```
 
 ## Docs
