@@ -1,9 +1,9 @@
 from src.itselectric.email_layout import render_email
 
 
-def test_render_email_contains_header():
+def test_render_email_omits_header():
     html = render_email("Hello **world**")
-    assert "It's Electric" in html
+    assert "It's Electric" not in html
 
 
 def test_render_email_converts_markdown():
@@ -17,9 +17,9 @@ def test_render_email_has_body_structure():
     assert "test content" in html
 
 
-def test_render_email_has_footer():
+def test_render_email_omits_footer():
     html = render_email("x")
-    assert "Reply to this email" in html
+    assert "Reply to this email" not in html
 
 
 def test_render_empty_body():

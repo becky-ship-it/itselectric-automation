@@ -11,19 +11,17 @@ cp config.example.yaml config.yaml
 # Edit config.yaml, then start the server — values are seeded once
 ```
 
-`config.yaml` is gitignored. After the initial seed it is no longer read.
+`config.yaml` is gitignored. It is checked on every startup, but existing database values are not overwritten.
 
 ## Config keys
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `gmail_label` | `INBOX` | Gmail label to fetch messages from |
+| `label` | `INBOX` | Gmail label to fetch messages from |
 | `max_messages` | `100` | Max messages per pipeline run |
 | `hubspot_access_token` | `""` | HubSpot Private App token. Empty = skip HubSpot sync |
 | `auto_send` | `false` | Send follow-up emails automatically during pipeline runs |
-| `google_doc_id` | `""` | Google Doc ID for email templates (overrides built-in templates when set) |
-| `spreadsheet_id` | `""` | Google Sheets ID for legacy row export (optional) |
-| `content_limit` | `5000` | Max characters stored in the email body column |
+| `spreadsheet_id` | `""` | Google Sheets ID for optional legacy export after a manual send |
 
 ## Decision tree
 
@@ -31,7 +29,7 @@ The decision tree is seeded from `decision_tree.yaml` on first startup, then sto
 
 `decision_tree.yaml` is the seed source only — the DB is the live source of truth after first run.
 
-See the in-app [Decision Tree Guide](/guide/decision-tree) for syntax reference.
+See the in-app [Decision Tree Guide](http://localhost:8000/guide/decision-tree) for syntax reference after starting the app.
 
 ## Email templates
 
@@ -48,7 +46,7 @@ Template variables:
 
 Unknown variables are left as-is (no error).
 
-See the in-app [Email Template Guide](/guide/templates) for full authoring instructions.
+See the [Email Template Guide](email-template-guide.md) for full authoring instructions.
 
 ## Geocoding cache
 
@@ -73,7 +71,6 @@ Required OAuth scopes:
 | `gmail.modify` | Read + label Gmail messages |
 | `gmail.send` | Send reply emails |
 | `spreadsheets` | Read/write Google Sheets (if using legacy export) |
-| `drive.readonly` | Export Google Docs for email templates |
 
 ## Chargers CSV
 
@@ -81,4 +78,4 @@ Charger locations are seeded from `src/itselectric/data/chargers.csv` into the `
 
 CSV columns: `STREET`, `CITY`, `STATE`, `ZIPCODE`, `CHARGERID`, `NUM_OF_CHARGERS`, `LAT`, `LONG`, `LAT_OVERRIDE`, `LONG_OVERRIDE`. Use `LAT_OVERRIDE`/`LONG_OVERRIDE` to correct coordinates without changing source data.
 
-The charger list is read-only at runtime — modify the CSV and restart to update.
+The CSV seeds missing charger records on startup. Charger records can also be created, updated, or deleted through the API.

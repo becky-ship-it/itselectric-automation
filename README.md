@@ -4,7 +4,7 @@ Web app that reads "It's Electric" contact-form emails from Gmail, extracts name
 
 ## What it does
 
-1. **Fetch** — Reads Gmail messages by label, or loads `.txt` files locally (no auth required for testing).
+1. **Fetch** — Reads Gmail messages by label, or loads local `.txt` fixtures for offline testing.
 2. **Extract** — Pulls out name, address, and email addresses via regex.
 3. **Geocode** — Converts the address to lat/long using Nominatim (cached in DB to avoid repeat calls).
 4. **Proximity** — Finds the nearest EV charger from a bundled CSV.
@@ -20,7 +20,7 @@ Web app that reads "It's Electric" contact-form emails from Gmail, extracts name
 # 1. Clone and start the server (installs all deps + builds frontend automatically)
 ./run_server.sh
 
-# 2. Add Google credentials (skip if using fixture mode only)
+# 2. Add Google credentials (skip for fixture mode while auto-send is off)
 #    Download OAuth 2.0 Desktop credentials from Google Cloud Console
 #    and save as credentials.json in the repo root.
 
@@ -49,19 +49,19 @@ Key settings:
 
 | Setting | Purpose |
 |---------|---------|
-| `gmail_label` | Gmail label to read (e.g. `"Follow Up"`) |
+| `label` | Gmail label to read (e.g. `"Follow Up"`) |
+| `max_messages` | Maximum messages to process per pipeline run |
 | `hubspot_access_token` | HubSpot Private App token for CRM sync |
 | `auto_send` | `true` to send emails automatically during pipeline runs |
-| `google_doc_id` | Google Doc ID for email templates (takes priority over built-in templates) |
 
-For initial seeding, `config.yaml` (gitignored) is read once on server startup. See `config.example.yaml` for all keys.
+For initial seeding, `config.yaml` (gitignored) is checked on startup; existing database values are not overwritten. See `config.example.yaml` for supported keys.
 
 ## Running tests
 
 ```bash
-uv run pytest tests/ -v            # 207 Python tests (no network calls)
-(cd web && npm test)              # Vitest unit tests
-(cd web && npx playwright test)   # E2E tests (server must be running)
+uv run --extra dev pytest tests/ -v       # Python tests (no network calls)
+(cd web && npm test)                       # Vitest unit tests
+(cd web && npx playwright test)            # E2E tests (server must be running)
 ```
 
 ## Docs
@@ -70,5 +70,5 @@ uv run pytest tests/ -v            # 207 Python tests (no network calls)
 - [Configuration](docs/configuration.md) — all config keys, DB seeding, geocache
 - [HubSpot integration](docs/hubspot.md) — setup, what gets synced
 - [Testing](docs/testing.md) — test suite, fixture emails, adding patterns
-- [Email Template Guide](/guide/templates) — authoring templates (served by the app)
-- [Decision Tree Guide](/guide/decision-tree) — tree syntax and operators (served by the app)
+- [Email Template Guide](docs/email-template-guide.md) — authoring Markdown templates
+- [Decision Tree Guide](http://localhost:8000/guide/decision-tree) — tree syntax and operators (after starting the app)

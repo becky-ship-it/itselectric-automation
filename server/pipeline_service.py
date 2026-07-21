@@ -68,13 +68,14 @@ def run_pipeline(
         max_messages = int(_get_config(session, "max_messages", "100"))
 
     chargers = _chargers_from_db(session)
-    creds = get_credentials()
+    creds = None
     hs_token = _get_config(session, "hubspot_access_token")
 
     if fixture_messages is not None:
         messages = fixture_messages
     else:
         log("Fetching emails from Gmail...")
+        creds = get_credentials()
         messages = fetch_messages(creds, label, max_messages)
         log(f"Fetched {len(messages)} message(s).")
 
@@ -198,6 +199,8 @@ def run_pipeline(
 
                 if auto_send and contact.email_primary:
                     try:
+                        if creds is None:
+                            creds = get_credentials()
                         ok = send_email(creds, contact.email_primary, subject, render_email(body))
                         outbound.status = "sent" if ok else "failed"
                         outbound.sent_at = datetime.now(timezone.utc)

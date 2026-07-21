@@ -11,11 +11,11 @@ FastAPI + React web app that reads "It's Electric" EV contact-form emails from G
 ├── src/itselectric/              # Core pipeline library (Python)
 │   ├── auth.py                   # Google OAuth credential management
 │   ├── decision_tree.py          # Decision tree evaluator
-│   ├── email_layout.py           # HTML email wrapper (logo header + footer)
+│   ├── email_layout.py           # Markdown-to-HTML email wrapper
 │   ├── extract.py                # Regex extraction from email bodies
 │   ├── fixture.py                # Local .txt email source for dev/testing
 │   ├── geo.py                    # Geocoding (Nominatim) + charger proximity
-│   ├── gmail.py                  # Gmail API: fetch, decode, send, load templates
+│   ├── gmail.py                  # Gmail API: fetch, decode, send
 │   ├── hubspot.py                # HubSpot CRM: upsert contacts
 │   ├── sheets.py                 # Google Sheets API: dedup + append (legacy)
 │   └── data/
@@ -31,11 +31,11 @@ FastAPI + React web app that reads "It's Electric" EV contact-form emails from G
 │   ├── log_store.py              # In-process log buffer (SSE-streamed to frontend)
 │   ├── sse.py                    # Server-Sent Events helper
 │   └── routers/
-│       ├── pipeline.py           # POST /api/pipeline/run, /api/pipeline/run-fixtures
+│       ├── pipeline.py           # POST /api/pipeline/run?fixture=true
 │       ├── contacts.py           # CRUD + send + fix for contacts
 │       ├── templates.py          # Email template CRUD
 │       ├── config.py             # App config key/value store
-│       ├── chargers.py           # Charger list read-only endpoint
+│       ├── chargers.py           # Charger CRUD endpoints
 │       ├── export.py             # CSV + JSON export
 │       └── logs.py               # SSE log stream
 │
@@ -87,7 +87,7 @@ FastAPI + React web app that reads "It's Electric" EV contact-form emails from G
 
 ## End-to-End Data Flow
 
-### Pipeline run (`POST /api/pipeline/run` or `POST /api/pipeline/run-fixtures`)
+### Pipeline run (`POST /api/pipeline/run`, with `?fixture=true` for fixture emails)
 
 ```
 Gmail label  OR  tests/fixtures/emails/*.txt
@@ -106,7 +106,7 @@ If parsed:
   ↓  find_nearest_charger()  → (charger_dict, distance_miles)
   ↓  evaluate(tree, ctx)     → template_name
 
-  ↓  load template body from DB (EmailTemplate table)
+  ↓  load template body from DB (`Template` table)
   ↓  body.format_map(SafeDict(name, address, city, state))
   ↓  render_email(body)      → HTML email via email_layout.py
 
@@ -130,8 +130,8 @@ User manually corrects name/email/address for an unparsed contact via the Inbox 
 Configures FastAPI, runs DB migrations (`Base.metadata.create_all`), and seeds initial data on startup:
 - **`seed_chargers`** — loads `src/itselectric/data/chargers.csv` into `Charger` table (idempotent)
 - **`seed_geocache`** — loads `geocache.json` into `GeoCache` table if it exists (one-time import)
-- **`seed_decision_tree_from_yaml`** — loads `decision_tree.yaml` into `DecisionTreeNode` table (skips if already seeded)
-- **`seed_templates_from_yaml`** — loads template names from `decision_tree.yaml` leaf nodes into `EmailTemplate` table (skips existing)
+- **`seed_decision_tree_from_yaml`** — stores `decision_tree.yaml` as a serialized `AppConfig` value (skips if already seeded)
+- **`seed_templates_from_yaml`** — creates `Template` rows from `decision_tree.yaml` leaf names (skips existing)
 - **`seed_config`** — loads `config.yaml` values into `AppConfig` table (skips existing keys)
 
 Serves the built React frontend from `web/dist/` as static files, with SPA fallback.
@@ -140,8 +140,8 @@ Serves the built React frontend from `web/dist/` as static files, with SPA fallb
 
 Core logic called by the pipeline router. Key behaviors:
 - Uses `_SafeDict` for template variable substitution — unknown `{variables}` are left as-is instead of throwing `KeyError`
-- Reads the decision tree from DB (`DecisionTreeNode` table) as a dict at runtime
-- Reads config from `AppConfig` table (e.g. `gmail_label`, `auto_send`, `hubspot_access_token`)
+- Uses the decision tree passed by the pipeline router from serialized `AppConfig`
+- Reads config from `AppConfig` (e.g. `label`, `auto_send`, `hubspot_access_token`)
 - Creates/updates `Contact` and `OutboundEmail` rows atomically per message
 
 ### `server/models.py`
@@ -150,9 +150,8 @@ Core logic called by the pipeline router. Key behaviors:
 |-------|---------|
 | `Contact` | One row per incoming email: name, address, emails, parse status, hubspot status |
 | `OutboundEmail` | One per routed contact: template, body, status (pending/sent/failed/skipped), sent_at |
-| `EmailTemplate` | Key/value store of template name → (subject, body) pairs |
-| `DecisionTreeNode` | Serialized tree structure (parent/child IDs, condition fields) |
-| `AppConfig` | Key/value config store (replaces config.yaml at runtime) |
+| `Template` | Template name, subject, and Markdown body |
+| `AppConfig` | Key/value configuration, including serialized decision tree; replaces `config.yaml` at runtime |
 | `Charger` | EV charger locations (seeded from CSV) |
 | `GeoCache` | Address → lat/lon cache (seeded from geocache.json) |
 
@@ -206,7 +205,7 @@ Returns `{"name", "address", "email_1", "email_2"}` on match, `None` otherwise.
 
 ### `email_layout.py`
 
-**`render_email(body_html: str) → str`** — wraps body in branded HTML email: white background, It's Electric logo header, footer with unsubscribe copy.
+**`render_email(body_md: str) → str`** — converts a Markdown body to styled HTML email.
 
 ### `decision_tree.py`
 
@@ -225,7 +224,7 @@ Context fields: `driver_state`, `charger_state`, `charger_city`, `distance_miles
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/api/pipeline/run` | Run pipeline against Gmail |
-| `POST` | `/api/pipeline/run-fixtures` | Run pipeline against fixture files |
+| `POST` | `/api/pipeline/run?fixture=true` | Run pipeline against fixture files |
 | `GET` | `/api/contacts` | List contacts (filterable by status) |
 | `GET` | `/api/contacts/{id}` | Get contact + email preview |
 | `POST` | `/api/contacts/{id}/send` | Send outbound email manually |
@@ -235,8 +234,11 @@ Context fields: `driver_state`, `charger_state`, `charger_city`, `distance_miles
 | `GET` | `/api/templates/{name}` | Get template body |
 | `PUT` | `/api/templates/{name}` | Save template body |
 | `GET` | `/api/config` | Get all config key/value pairs |
-| `PUT` | `/api/config/{key}` | Set config value |
+| `PUT` | `/api/config` | Set one or more config values |
 | `GET` | `/api/chargers` | List charger locations |
+| `POST` | `/api/chargers` | Create a charger location |
+| `PUT` | `/api/chargers/{charger_id}` | Update a charger location |
+| `DELETE` | `/api/chargers/{charger_id}` | Delete a charger location |
 | `GET` | `/api/export/csv` | Download contacts as CSV |
 | `GET` | `/api/export/json` | Download contacts as JSON |
 | `GET` | `/api/logs/stream` | SSE log stream |
