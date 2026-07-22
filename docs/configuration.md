@@ -62,7 +62,7 @@ If `geocache.json` exists in the repo root on first startup, it is imported into
 
 ## Google credentials
 
-`credentials.json` (OAuth 2.0 Desktop client secrets from Google Cloud Console) and `token.json` (saved auth tokens) are gitignored. Place them in the repo root.
+`credentials.json` (OAuth 2.0 Desktop client secrets from Google Cloud Console) and `token.json` (saved auth tokens) are gitignored. Place them in the repo root. See [Google OAuth Setup](google-auth.md) for client creation, authorization, and troubleshooting.
 
 Required OAuth scopes:
 
