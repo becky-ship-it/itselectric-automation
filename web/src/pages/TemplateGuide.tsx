@@ -38,9 +38,8 @@ export default function TemplateGuide() {
 
       <Section title="Overview">
         <p className="text-sm text-gray-700 leading-relaxed">
-          Templates are written in <strong>Markdown</strong> and automatically wrapped in the
-          it's electric branded email layout (header, footer, styling) when previewed or sent.
-          Write the body content only — no need to add a header or sign-off boilerplate to the template itself.
+          Templates are written in <strong>Markdown</strong> and wrapped in the app's email styling
+          when previewed or sent. Write the body content only.
         </p>
       </Section>
 

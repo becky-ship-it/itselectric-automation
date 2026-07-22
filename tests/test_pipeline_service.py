@@ -113,13 +113,24 @@ def test_run_pipeline_unparsed_email_creates_unparsed_row(db_session):
     assert contact.parse_status == "unparsed"
 
 
-def test_run_pipeline_uses_fixture_messages_when_provided(db_session):
-    with patch("server.pipeline_service.get_credentials", return_value=MagicMock()):
+def test_fixture_pipeline_queues_email_without_credentials(db_session):
+    tree = {
+        "condition": {"field": "distance_miles", "op": "lte", "value": 999},
+        "then": {"template": "tell_me_more_general"},
+        "else": {"template": None},
+    }
+    with (
+        patch("server.pipeline_service.get_credentials") as get_credentials,
+        patch("server.pipeline_service.geocode_address", return_value=(40.6929, -73.9958)),
+        patch("server.pipeline_service.send_email") as send_email,
+    ):
         run_pipeline(
             db_session,
-            decision_tree=None,
+            decision_tree=tree,
             fixture_messages=[FIXTURE_EMAIL],
             log=lambda m: None,
         )
 
-    assert db_session.query(Contact).filter_by(id="msg_001").count() == 1
+    get_credentials.assert_not_called()
+    send_email.assert_not_called()
+    assert db_session.query(OutboundEmail).one().status == "pending"

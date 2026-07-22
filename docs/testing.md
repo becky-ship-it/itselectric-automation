@@ -3,17 +3,17 @@
 ## Running tests
 
 ```bash
-uv run pytest tests/ -v          # all 207 Python tests
-uv run pytest tests/test_geo.py  # single file
-uv run pytest -k "test_full"     # by name pattern
+uv run --extra dev pytest tests/ -v          # all Python tests
+uv run --extra dev pytest tests/test_geo.py  # single file
+uv run --extra dev pytest -k "test_full"     # by name pattern
 
-cd web && npm test               # Vitest unit tests (Config, History pages)
-cd web && npx playwright test    # E2E browser tests (server must be running on :8000)
+(cd web && npm test)                        # Vitest unit tests (Config, History pages)
+(cd web && npx playwright test)             # E2E browser tests (server must be running on :8000)
 ```
 
 No `credentials.json`, `token.json`, or network access required for the Python suite.
 
-## Python test suite (207 tests)
+## Python test suite
 
 | File | Count | What's covered |
 |------|-------|----------------|
@@ -30,7 +30,7 @@ No `credentials.json`, `token.json`, or network access required for the Python s
 | `test_api_chargers.py` | 6 | Charger list endpoint |
 | `test_pipeline_service.py` | 5 | `run_pipeline` with fixture mode, HubSpot skip, auto-send gate |
 | `test_hubspot.py` | 5 | `upsert_contact`: success, endpoint shape, name splitting, error handling |
-| `test_email_layout.py` | 5 | `render_email` HTML structure, logo presence |
+| `test_email_layout.py` | 5 | `render_email` HTML structure and Markdown rendering |
 | `test_api_export.py` | 5 | CSV and JSON export endpoints |
 | `test_extract.py` | 4 | Regex match, no-match, empty, None input |
 | `test_api_pipeline.py` | 4 | Pipeline run endpoints |
@@ -79,13 +79,13 @@ Tests run headless against the live server at `http://localhost:8000`. Start it 
 1. Edit `EXTRACT_PATTERN` in `src/itselectric/extract.py`
 2. Add a fixture file in `tests/fixtures/emails/` with sample content
 3. Add unit tests in `tests/test_extract.py`
-4. Run `uv run pytest tests/test_extract.py tests/test_integration.py -v`
+4. Run `uv run --extra dev pytest tests/test_extract.py tests/test_integration.py -v`
 
 ## Linting
 
 ```bash
-uv run ruff check src/ tests/
-uv run ruff format src/ tests/
+uv run --extra dev ruff check src/ tests/
+uv run --extra dev ruff format src/ tests/
 ```
 
 Rules: `E`, `F`, `I` — line length 100.

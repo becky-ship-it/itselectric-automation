@@ -1,44 +1,16 @@
-# Pipeline configuration for itselectric-automation.
+# Initial database configuration for itselectric-automation.
 # Copy this file to config.yaml and fill in your values.
 # config.yaml is gitignored — never commit it.
-#
-# CLI flags override these values when provided.
+# Values seed the database on first startup; change them later in the web UI.
 
 label: INBOX
 max_messages: 100
-body_length: 200
-spreadsheet_id: ""   # Google Spreadsheet ID from the sheet URL
-sheet: Sheet1
-content_limit: 5000
 
-# Path to EV charger locations CSV (default: bundled src/itselectric/data/chargers.csv)
-# chargers: src/itselectric/data/chargers.csv
+# Optional Google Spreadsheet ID. Rows are exported after manual email sends.
+spreadsheet_id: ""
 
-# Path to JSON file that caches geocoded addresses (avoids repeated API calls)
-geocache: geocache.json
+# Optional HubSpot access token. When set, creates or updates contacts.
+hubspot_access_token: ""
 
-# Load emails from .txt files in this directory instead of Gmail (skips auth).
-# Useful for local dev and integration testing. Leave empty to use Gmail.
-# fixture_dir: tests/fixtures/emails
-
-# HubSpot access token. When set, creates/updates contacts in HubSpot CRM.
-# Get one from: HubSpot Development → Legacy Apps → your app → Auth → Access token
-# Runs independently of spreadsheet_id — you can set one, both, or neither.
-# hubspot_access_token: ""
-
-# Path to YAML file defining the email routing decision tree.
-# See decision_tree.example.yaml for the full format.
-# decision_tree_file: decision_tree.yaml
-
-# Google Doc ID for email templates (from the doc URL).
-# H1 headings in the doc must match decision tree template names.
-# Under each heading: first paragraph = subject, rest = HTML body.
-# Supports {name}, {address}, {city}, {state} substitution.
-# Requires drive.readonly scope (re-auth token.json after adding this).
-# Takes priority over template_dir when set.
-# google_doc_id: "1MQOhCOSRZ9zi7-XWVEh-7e-BCjHjeCgjg2l-IxJskp4"
-
-# Directory containing email template .txt/.html files (local fallback).
-# Each file: first line = subject, blank line, then body.
-# Supports {name} and {address} substitution in the body.
-# template_dir: email_templates
+# Set true to send emails automatically during pipeline runs.
+auto_send: false
