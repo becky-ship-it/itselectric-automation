@@ -21,8 +21,7 @@ Web app that reads "It's Electric" contact-form emails from Gmail, extracts name
 ./run_server.sh
 
 # 2. Add Google credentials (skip for fixture mode while auto-send is off)
-#    Download OAuth 2.0 Desktop credentials from Google Cloud Console
-#    and save as credentials.json in the repo root.
+#    Follow docs/google-auth.md, then save credentials.json in the repo root.
 
 # 3. Open http://localhost:8000
 ```
@@ -68,6 +67,7 @@ uv run --extra dev pytest tests/ -v       # Python tests (no network calls)
 
 - [Repo overview](docs/repo-overview.md) — architecture, data flow, module reference
 - [Configuration](docs/configuration.md) — all config keys, DB seeding, geocache
+- [Google OAuth setup](docs/google-auth.md) — Gmail and optional Sheets authorization
 - [HubSpot integration](docs/hubspot.md) — setup, what gets synced
 - [Testing](docs/testing.md) — test suite, fixture emails, adding patterns
 - [Email Template Guide](docs/email-template-guide.md) — authoring Markdown templates
