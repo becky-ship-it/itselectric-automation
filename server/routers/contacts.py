@@ -322,7 +322,10 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
     if cached:
         coords = (cached.lat, cached.lon)
     else:
-        coords = geocode_address(body.address)
+        geocodio_row = db.query(AppConfig).filter_by(key="geocodio_api_key").first()
+        coords = geocode_address(
+            body.address, geocodio_api_key=geocodio_row.value if geocodio_row else None
+        )
         if coords:
             db.add(GeoCache(address=body.address, lat=coords[0], lon=coords[1]))
             db.flush()

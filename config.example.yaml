@@ -12,5 +12,9 @@ spreadsheet_id: ""
 # Optional HubSpot access token. When set, creates or updates contacts.
 hubspot_access_token: ""
 
+# Optional Geocodio API key. When set, addresses are geocoded via Geocodio
+# (better with apartments/messy input) with Nominatim as the free fallback.
+geocodio_api_key: ""
+
 # Set true to send emails automatically during pipeline runs.
 auto_send: false
