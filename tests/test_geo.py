@@ -41,6 +41,19 @@ def test_strip_unit_no_unit_unchanged():
     assert _strip_unit("19 Morris Ave, Brooklyn, NY 11205") == "19 Morris Ave, Brooklyn, NY 11205"
 
 
+# Comma-less human input: the unit value must not swallow the trailing
+# city/state/zip, which would send the geocoder to the wrong city entirely.
+def test_strip_unit_no_comma_keeps_city_state_zip():
+    assert (
+        _strip_unit("88 park ave suite 12 brooklyn new york 11205")
+        == "88 park ave brooklyn new york 11205"
+    )
+
+
+def test_strip_unit_no_comma_apt_keeps_city_state():
+    assert _strip_unit("1 Woodward Ave apt 900 detroit MI") == "1 Woodward Ave detroit MI"
+
+
 # Real-world multi-word unit values seen in the wild
 def test_strip_unit_apt_hash_word_number():
     assert (
@@ -97,6 +110,51 @@ def test_geocode_address_apt_variants_share_cache_entry(tmp_path):
         geocode_address("19 Morris Ave, APT #2B, Brooklyn, NY 11205", cache_path=cache_file)
         # Second call should hit cache — geocoder called only once
         assert mock_fn.call_count == 1
+
+
+# ── provider selection: Geocodio first, Nominatim fallback ────────────────────
+
+
+def test_geocode_prefers_geocodio_when_key_set(tmp_path):
+    """With a key set, Geocodio is used and Nominatim is not called."""
+    geo_loc = MagicMock(latitude=40.70, longitude=-73.97)
+    with (
+        patch("itselectric.geo._geocodio") as mock_geocodio,
+        patch("itselectric.geo._geocode_fn") as mock_nominatim,
+    ):
+        mock_geocodio.return_value.geocode.return_value = geo_loc
+        result = geocode_address("350 5th Ave, New York, NY", geocodio_api_key="key123")
+        assert result == (40.70, -73.97)
+        mock_geocodio.assert_called_once_with("key123")
+        mock_nominatim.assert_not_called()
+
+
+def test_geocode_falls_back_to_nominatim_when_no_key(tmp_path):
+    """Without a key, Geocodio is never built; Nominatim resolves."""
+    nom_loc = MagicMock(latitude=42.0, longitude=-71.0)
+    with (
+        patch("itselectric.geo._geocodio") as mock_geocodio,
+        patch("itselectric.geo._geocode_fn", return_value=nom_loc) as mock_nominatim,
+    ):
+        result = geocode_address("4 Huntoon St, Boston, MA")
+        assert result == (42.0, -71.0)
+        mock_geocodio.assert_not_called()
+        mock_nominatim.assert_called_once()
+
+
+def test_geocode_falls_back_when_geocodio_errors(tmp_path):
+    """Geocodio raising a service error falls through to Nominatim."""
+    from geopy.exc import GeocoderServiceError
+
+    nom_loc = MagicMock(latitude=42.0, longitude=-71.0)
+    with (
+        patch("itselectric.geo._geocodio") as mock_geocodio,
+        patch("itselectric.geo._geocode_fn", return_value=nom_loc) as mock_nominatim,
+    ):
+        mock_geocodio.return_value.geocode.side_effect = GeocoderServiceError("timeout")
+        result = geocode_address("4 Huntoon St, Boston, MA", geocodio_api_key="key123")
+        assert result == (42.0, -71.0)
+        mock_nominatim.assert_called_once()
 
 
 # ── load_chargers ─────────────────────────────────────────────────────────────

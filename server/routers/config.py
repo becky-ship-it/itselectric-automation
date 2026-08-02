@@ -20,6 +20,7 @@ _ALLOWED_CONFIG_KEYS = {
     "sheet",
     "content_limit",
     "hubspot_access_token",
+    "geocodio_api_key",
     "google_doc_id",
     "auto_send",
 }
@@ -128,7 +129,10 @@ def test_decision_tree(db: DbDep):
         else:
             from src.itselectric.geo import geocode_address
 
-            coords = geocode_address(parsed["address"])
+            geocodio_row = db.query(AppConfig).filter_by(key="geocodio_api_key").first()
+            coords = geocode_address(
+                parsed["address"], geocodio_api_key=geocodio_row.value if geocodio_row else None
+            )
 
         if not coords:
             results.append({"id": msg.get("id", ""), "parsed": True, "template": "geocode_failed"})

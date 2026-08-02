@@ -35,7 +35,7 @@ def _geocode_with_db_cache(address: str, session: Session) -> tuple[float, float
     entry = session.query(GeoCache).filter_by(address=address).first()
     if entry:
         return entry.lat, entry.lon
-    coords = geocode_address(address)
+    coords = geocode_address(address, geocodio_api_key=_get_config(session, "geocodio_api_key"))
     if coords:
         existing = session.query(GeoCache).filter_by(address=address).first()
         if not existing:
