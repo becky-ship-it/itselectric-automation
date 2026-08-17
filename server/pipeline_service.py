@@ -126,7 +126,11 @@ def run_pipeline(
 
             if hs_token and contact.email_primary:
                 hs_id = hs_upsert(
-                    hs_token, parsed["name"], contact.email_primary, parsed["address"]
+                    hs_token,
+                    parsed["name"],
+                    contact.email_primary,
+                    parsed["address"],
+                    geocodio_api_key=_get_config(session, "geocodio_api_key"),
                 )
                 contact.hubspot_status = "synced" if hs_id else "failed"
                 log(f"  HubSpot: {'synced (' + hs_id + ')' if hs_id else 'failed'}")

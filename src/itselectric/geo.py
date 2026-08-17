@@ -21,9 +21,18 @@ DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 # "12 brooklyn ny" and leave only the street, sending the geocoder to the wrong
 # city. Handles multi-word #-values seen in the wild: "APT #Stage 11",
 # "APT#Unit 430", "APT # UNIT 6005".
+#
+# The designator list mirrors the USPS secondary-unit designators (Publication
+# 28, Appendix C2) so that a unit in its own comma segment ("..., Floor 3,
+# Brooklyn") is stripped instead of leaking into the city field on the regex
+# fallback path. Every alternative still requires a trailing number, so real
+# city names ("North Haven", "Novato") are not eaten. A bare "#12" segment with
+# no keyword is also handled.
 _UNIT_RE = re.compile(
-    r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*"
-    r"(?:#\s*[^,]*?\d+[A-Za-z]?|\d+[A-Za-z]?)",
+    r",?\s*\b(?:apt|apartment|suite|ste|unit|unt|bldg|building|fl|floor|rm|room|"
+    r"dept|department|lot|space|spc|trlr|trailer|hangar|hngr|slip|pier|stop|"
+    r"no|number)\.?\s*(?:#\s*[^,]*?\d+[A-Za-z]?|\d+[A-Za-z]?)"
+    r"|,?\s*#\s*\w*\d+[A-Za-z]?",
     re.IGNORECASE,
 )
 
@@ -110,6 +119,52 @@ def parse_address_components(address: str) -> dict[str, str]:
     if m:
         return {"street": m.group(1), "city": m.group(2), "state": "", "zip": ""}
     return {"street": address, "city": "", "state": "", "zip": ""}
+
+
+def resolve_address_components(
+    address: str, geocodio_api_key: str | None = None
+) -> dict[str, str]:
+    """
+    Resolve an address into street/city/state/zip components, preferring
+    Geocodio's structured output over regex string-splitting.
+
+    Geocodio returns parsed ``address_components`` (city, state, zip separate
+    from the street line), so apartment/unit numbers do not leak into the city
+    the way they do with positional comma-splitting. When no key is set, or
+    Geocodio errors or returns no components, this falls back to
+    ``parse_address_components`` on the unit-stripped address.
+
+    The street line always comes from the original input (with the unit kept),
+    so the full mailing address is preserved for CRM records.
+
+    Args:
+        address: Human-readable address string.
+        geocodio_api_key: Optional Geocodio API key. When set, Geocodio is tried
+            first for city/state/zip.
+
+    Returns:
+        Dict with keys ``street``, ``city``, ``state``, ``zip``. Missing parts
+        are empty strings.
+    """
+    address = (address or "").strip()
+    fallback = parse_address_components(_strip_unit(address))
+    fallback["street"] = address or fallback["street"]
+    if not geocodio_api_key or not address:
+        return fallback
+
+    try:
+        loc = _geocodio(geocodio_api_key).geocode(address)
+    except GeocoderServiceError:
+        return fallback
+    comps = (loc.raw.get("address_components") if loc is not None else None) or {}
+    if not comps.get("city"):
+        return fallback
+    return {
+        "street": address,
+        "city": comps.get("city", ""),
+        "state": comps.get("state", ""),
+        "zip": comps.get("zip", ""),
+    }
 
 
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0", timeout=10)

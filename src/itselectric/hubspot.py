@@ -23,16 +23,21 @@ def upsert_contact(
     name: str,
     email: str,
     address: str,
+    geocodio_api_key: str | None = None,
 ) -> str | None:
     """
     Create or update a HubSpot contact using the batch upsert endpoint.
     Uses email as the dedup key (idProperty). All properties are always sent
     since partial upserts are not supported with email as idProperty.
-    Returns the contact ID, or None on error.
+
+    Address components (city/state/zip) come from Geocodio's structured output
+    when ``geocodio_api_key`` is set, so apartment numbers do not corrupt the
+    city field; otherwise they fall back to regex parsing. Returns the contact
+    ID, or None on error.
     """
-    from src.itselectric.geo import parse_address_components
+    from src.itselectric.geo import resolve_address_components
     firstname, lastname = _split_name(name)
-    parts = parse_address_components(address)
+    parts = resolve_address_components(address, geocodio_api_key)
     try:
         resp = requests.post(
             f"{_BASE}/crm/v3/objects/contacts/batch/upsert",
