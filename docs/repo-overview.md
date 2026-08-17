@@ -192,7 +192,7 @@ Returns `{"name", "address", "email_1", "email_2"}` on match, `None` otherwise.
 
 - `POST https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert`
 - Dedup key: `idProperty="email"`
-- Properties: `email`, `firstname`, `lastname`, `address` (street), `city`, `state`, `zip`, `form_selection: "EV Driver"`
+- Properties: `email`, `firstname`, `lastname`, `address` (street line 1), `street_address_2` (unit), `city`, `us_state_or_canadian_province_2` (state), `zip`, `form_selection: "EV Driver"`
 - Non-fatal: catches `RequestException`, returns `None`
 
 ### `gmail.py`

@@ -15,9 +15,10 @@ When `hubspot_access_token` is set in config, the pipeline creates or updates a 
 | `email` | `email_1` (from Gmail headers) |
 | `firstname` | First word of extracted `name` |
 | `lastname` | Remaining words of extracted `name` |
-| `address` | Street portion of extracted address |
+| `address` | Street line 1 of extracted address |
+| `street_address_2` | Apartment/unit (custom property) |
 | `city` | City parsed from address |
-| `state` | State parsed from address |
+| `us_state_or_canadian_province_2` | State parsed from address (custom property) |
 | `zip` | ZIP code parsed from address |
 | `form_selection` | Always `"EV Driver"` (custom property) |
 
