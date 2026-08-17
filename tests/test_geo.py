@@ -43,6 +43,38 @@ def test_strip_unit_no_unit_unchanged():
     assert _strip_unit("19 Morris Ave, Brooklyn, NY 11205") == "19 Morris Ave, Brooklyn, NY 11205"
 
 
+# Units in their own comma segment, using USPS designators beyond apt/suite/unit.
+# Before widening _UNIT_RE these leaked into the city on the regex fallback path
+# (e.g. "Floor 3, Brooklyn").
+@pytest.mark.parametrize(
+    "address",
+    [
+        "123 Main St, #4B, Brooklyn, NY 11201",
+        "123 Main St, Floor 3, Brooklyn, NY 11201",
+        "123 Main St, No. 12, Brooklyn, NY 11201",
+        "123 Main St, Lot 7, Brooklyn, NY 11201",
+        "123 Main St, Rm 5, Brooklyn, NY 11201",
+        "123 Main St, Bldg 4, Brooklyn, NY 11201",
+    ],
+)
+def test_strip_unit_comma_segment_designators(address):
+    assert _strip_unit(address) == "123 Main St, Brooklyn, NY 11201"
+
+
+# Real city names that resemble unit keywords must survive (each alternative
+# requires a trailing number, so an unnumbered word is never stripped).
+@pytest.mark.parametrize(
+    "address",
+    [
+        "742 Evergreen Terrace, North Haven, CT 06473",
+        "10 Park Ave, Novato, CA 94945",
+        "9 Number One Way, Boston, MA 02101",
+    ],
+)
+def test_strip_unit_does_not_eat_city_names(address):
+    assert _strip_unit(address) == address
+
+
 # Comma-less human input: the unit value must not swallow the trailing
 # city/state/zip, which would send the geocoder to the wrong city entirely.
 def test_strip_unit_no_comma_keeps_city_state_zip():

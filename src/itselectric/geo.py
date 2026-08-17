@@ -21,9 +21,18 @@ DEFAULT_CHARGERS_CSV = Path(__file__).parent / "data" / "chargers.csv"
 # "12 brooklyn ny" and leave only the street, sending the geocoder to the wrong
 # city. Handles multi-word #-values seen in the wild: "APT #Stage 11",
 # "APT#Unit 430", "APT # UNIT 6005".
+#
+# The designator list mirrors the USPS secondary-unit designators (Publication
+# 28, Appendix C2) so that a unit in its own comma segment ("..., Floor 3,
+# Brooklyn") is stripped instead of leaking into the city field on the regex
+# fallback path. Every alternative still requires a trailing number, so real
+# city names ("North Haven", "Novato") are not eaten. A bare "#12" segment with
+# no keyword is also handled.
 _UNIT_RE = re.compile(
-    r",?\s*\b(?:apt|apartment|suite|ste|unit|unt)\.?\s*"
-    r"(?:#\s*[^,]*?\d+[A-Za-z]?|\d+[A-Za-z]?)",
+    r",?\s*\b(?:apt|apartment|suite|ste|unit|unt|bldg|building|fl|floor|rm|room|"
+    r"dept|department|lot|space|spc|trlr|trailer|hangar|hngr|slip|pier|stop|"
+    r"no|number)\.?\s*(?:#\s*[^,]*?\d+[A-Za-z]?|\d+[A-Za-z]?)"
+    r"|,?\s*#\s*\w*\d+[A-Za-z]?",
     re.IGNORECASE,
 )
 
