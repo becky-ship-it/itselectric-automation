@@ -472,6 +472,7 @@ export default function Config() {
             { key: 'label', label: 'Pipeline label', type: 'text', placeholder: 'e.g. Production' },
             { key: 'spreadsheet_id', label: 'Google Sheets ID', type: 'text', placeholder: 'Spreadsheet ID from URL' },
             { key: 'max_messages', label: 'Max messages per run', type: 'number', placeholder: '50' },
+            { key: 'geocodio_api_key', label: 'Geocodio API key', type: 'text', placeholder: 'Geocodio API key' },
           ].map(({ key, label, type, placeholder }) => (
             <div key={key}>
               <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
