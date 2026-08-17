@@ -112,6 +112,52 @@ def parse_address_components(address: str) -> dict[str, str]:
     return {"street": address, "city": "", "state": "", "zip": ""}
 
 
+def resolve_address_components(
+    address: str, geocodio_api_key: str | None = None
+) -> dict[str, str]:
+    """
+    Resolve an address into street/city/state/zip components, preferring
+    Geocodio's structured output over regex string-splitting.
+
+    Geocodio returns parsed ``address_components`` (city, state, zip separate
+    from the street line), so apartment/unit numbers do not leak into the city
+    the way they do with positional comma-splitting. When no key is set, or
+    Geocodio errors or returns no components, this falls back to
+    ``parse_address_components`` on the unit-stripped address.
+
+    The street line always comes from the original input (with the unit kept),
+    so the full mailing address is preserved for CRM records.
+
+    Args:
+        address: Human-readable address string.
+        geocodio_api_key: Optional Geocodio API key. When set, Geocodio is tried
+            first for city/state/zip.
+
+    Returns:
+        Dict with keys ``street``, ``city``, ``state``, ``zip``. Missing parts
+        are empty strings.
+    """
+    address = (address or "").strip()
+    fallback = parse_address_components(_strip_unit(address))
+    fallback["street"] = address or fallback["street"]
+    if not geocodio_api_key or not address:
+        return fallback
+
+    try:
+        loc = _geocodio(geocodio_api_key).geocode(address)
+    except GeocoderServiceError:
+        return fallback
+    comps = (loc.raw.get("address_components") if loc is not None else None) or {}
+    if not comps.get("city"):
+        return fallback
+    return {
+        "street": address,
+        "city": comps.get("city", ""),
+        "state": comps.get("state", ""),
+        "zip": comps.get("zip", ""),
+    }
+
+
 _nominatim = Nominatim(user_agent="itselectric-automation/1.0", timeout=10)
 _geocode_fn = RateLimiter(_nominatim.geocode, min_delay_seconds=1)
 

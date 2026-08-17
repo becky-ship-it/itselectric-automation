@@ -5,6 +5,7 @@ import textwrap
 from unittest.mock import MagicMock, patch
 
 import pytest  # type: ignore
+from geopy.exc import GeocoderServiceError  # type: ignore
 
 from itselectric.geo import (  # type: ignore
     _strip_unit,
@@ -12,6 +13,7 @@ from itselectric.geo import (  # type: ignore
     find_nearest_charger,
     geocode_address,
     load_chargers,
+    resolve_address_components,
 )
 
 # ── _strip_unit ───────────────────────────────────────────────────────────────
@@ -361,3 +363,58 @@ def test_geocode_address_not_found(tmp_path):
 def test_geocode_address_empty():
     assert geocode_address("") is None
     assert geocode_address(None) is None
+
+
+# ── resolve_address_components: structured parse via Geocodio ──────────────────
+
+def _geocodio_loc(components: dict) -> MagicMock:
+    loc = MagicMock()
+    loc.raw = {"address_components": components}
+    return loc
+
+
+def test_resolve_components_uses_geocodio_when_key_set():
+    """Geocodio's structured city/state/zip are used; apartment stays out of city."""
+    loc = _geocodio_loc({"city": "Brooklyn", "state": "NY", "zip": "11201"})
+    with patch("itselectric.geo._geocodio") as mock_geocodio:
+        mock_geocodio.return_value.geocode.return_value = loc
+        parts = resolve_address_components(
+            "123 Main St, Apt 4, Brooklyn, NY 11201", geocodio_api_key="key123"
+        )
+    assert parts["city"] == "Brooklyn"
+    assert parts["state"] == "NY"
+    assert parts["zip"] == "11201"
+    # Full mailing address (with unit) preserved on the street line.
+    assert parts["street"] == "123 Main St, Apt 4, Brooklyn, NY 11201"
+
+
+def test_resolve_components_falls_back_to_regex_without_key():
+    """No key → regex on the unit-stripped address; apartment does not leak into city."""
+    with patch("itselectric.geo._geocodio") as mock_geocodio:
+        parts = resolve_address_components("123 Main St, Apt 4, Brooklyn, NY 11201")
+        mock_geocodio.assert_not_called()
+    assert parts["city"] == "Brooklyn"
+    assert parts["state"] == "NY"
+    assert parts["street"] == "123 Main St, Apt 4, Brooklyn, NY 11201"
+
+
+def test_resolve_components_falls_back_when_geocodio_errors():
+    """Geocodio raising falls through to regex parsing."""
+    with patch("itselectric.geo._geocodio") as mock_geocodio:
+        mock_geocodio.return_value.geocode.side_effect = GeocoderServiceError("timeout")
+        parts = resolve_address_components(
+            "123 Main St, Unit 5B, Austin, TX", geocodio_api_key="key123"
+        )
+    assert parts["city"] == "Austin"
+    assert parts["state"] == "TX"
+
+
+def test_resolve_components_falls_back_when_geocodio_has_no_city():
+    """Geocodio miss (no city component) falls through to regex parsing."""
+    loc = _geocodio_loc({})
+    with patch("itselectric.geo._geocodio") as mock_geocodio:
+        mock_geocodio.return_value.geocode.return_value = loc
+        parts = resolve_address_components(
+            "123 Main St, Apt 4, Brooklyn, NY 11201", geocodio_api_key="key123"
+        )
+    assert parts["city"] == "Brooklyn"
