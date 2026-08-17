@@ -406,8 +406,18 @@ def _geocodio_loc(components: dict) -> MagicMock:
 
 
 def test_resolve_components_uses_geocodio_when_key_set():
-    """Geocodio's structured city/state/zip are used; apartment stays out of city."""
-    loc = _geocodio_loc({"city": "Brooklyn", "state": "NY", "zip": "11201"})
+    """Geocodio structured output: line 1, unit, city/state/zip each separate."""
+    loc = _geocodio_loc(
+        {
+            "number": "123",
+            "formatted_street": "Main St",
+            "secondaryunit": "Apt",
+            "secondarynumber": "4",
+            "city": "Brooklyn",
+            "state": "NY",
+            "zip": "11201",
+        }
+    )
     with patch("itselectric.geo._geocodio") as mock_geocodio:
         mock_geocodio.return_value.geocode.return_value = loc
         parts = resolve_address_components(
@@ -416,8 +426,9 @@ def test_resolve_components_uses_geocodio_when_key_set():
     assert parts["city"] == "Brooklyn"
     assert parts["state"] == "NY"
     assert parts["zip"] == "11201"
-    # Full mailing address (with unit) preserved on the street line.
-    assert parts["street"] == "123 Main St, Apt 4, Brooklyn, NY 11201"
+    # Line 1 is street only; the apartment goes in its own field.
+    assert parts["street"] == "123 Main St"
+    assert parts["unit"] == "Apt 4"
 
 
 def test_resolve_components_falls_back_to_regex_without_key():
@@ -427,7 +438,8 @@ def test_resolve_components_falls_back_to_regex_without_key():
         mock_geocodio.assert_not_called()
     assert parts["city"] == "Brooklyn"
     assert parts["state"] == "NY"
-    assert parts["street"] == "123 Main St, Apt 4, Brooklyn, NY 11201"
+    assert parts["street"] == "123 Main St"
+    assert parts["unit"] == ""
 
 
 def test_resolve_components_falls_back_when_geocodio_errors():

@@ -52,6 +52,7 @@ def upsert_contact(
                             "firstname": firstname,
                             "lastname": lastname,
                             "address": parts["street"],
+                            "street_address_2": parts["unit"],
                             "city": parts["city"],
                             "state": parts["state"],
                             "zip": parts["zip"],
