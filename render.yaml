@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: itselectric
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/config
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: itselectric-db
+          property: connectionString
+      # Set these in the Render dashboard (marked sync:false so they are not
+      # stored in this file). See docs/deploy-render.md for how to mint the
+      # refresh token.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+
+databases:
+  - name: itselectric-db
+    plan: free

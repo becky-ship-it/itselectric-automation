@@ -19,6 +19,12 @@ from server.seed import (
 )
 
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///data/itselectric.db")
+# Render (and most hosts) hand out postgres URLs as `postgres://` or
+# `postgresql://`; pin the psycopg3 dialect SQLAlchemy expects.
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DB_URL.startswith("postgresql://"):
+    DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 GEOCACHE_PATH = os.getenv("GEOCACHE_PATH", "geocache.json")
 # decision_tree.yaml is a seed-only source — the DB is the live source of truth after first run
 DECISION_TREE_PATH = os.getenv("DECISION_TREE_PATH", "decision_tree.yaml")

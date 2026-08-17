@@ -9,7 +9,9 @@ class Base(DeclarativeBase):
 
 
 def get_engine(url: str = "sqlite:///data/itselectric.db"):
-    return _create_engine(url, connect_args={"check_same_thread": False})
+    # check_same_thread is a SQLite-only pysqlite arg; Postgres drivers reject it.
+    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+    return _create_engine(url, connect_args=connect_args)
 
 
 @contextmanager

@@ -69,6 +69,7 @@ uv run --extra dev pytest tests/ -v       # Python tests (no network calls)
 - [Repo overview](docs/repo-overview.md) — architecture, data flow, module reference
 - [Configuration](docs/configuration.md) — all config keys, DB seeding, geocache
 - [Google OAuth setup](docs/google-auth.md) — Gmail and optional Sheets authorization
+- [Deploying to Render](docs/deploy-render.md) — Docker + Postgres + headless Google auth
 - [HubSpot integration](docs/hubspot.md) — setup, what gets synced
 - [Testing](docs/testing.md) — test suite, fixture emails, adding patterns
 - [Email Template Guide](docs/email-template-guide.md) — authoring Markdown templates
