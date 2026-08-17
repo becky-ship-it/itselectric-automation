@@ -74,6 +74,11 @@ export interface DecisionTreeTestResponse {
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = init ? await fetch(url, init) : await fetch(url)
+  if (resp.status === 401) {
+    // Session expired or not signed in — bounce to Google SSO.
+    window.location.href = '/auth/login'
+    throw new Error('401 authentication required')
+  }
   if (!resp.ok) {
     const text = await resp.text()
     throw new Error(`${resp.status} ${text}`)

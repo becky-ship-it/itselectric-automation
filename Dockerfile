@@ -28,4 +28,6 @@ COPY --from=web /web/dist ./web/dist
 
 # Render provides $PORT; default to 8000 for local `docker run`.
 ENV PORT=8000
-CMD ["sh", "-c", "uvicorn server.main:app --host 0.0.0.0 --port ${PORT}"]
+# --proxy-headers + forwarded-allow-ips lets the app see the real https scheme
+# and host behind Render's TLS-terminating proxy, so OAuth redirect URIs match.
+CMD ["sh", "-c", "uvicorn server.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]

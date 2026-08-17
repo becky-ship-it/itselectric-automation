@@ -4,10 +4,13 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
+from server import auth
+from server.auth import require_user
 from server.db import Base, get_engine, get_session
 from server.routers import chargers, config, contacts, export, logs, pipeline, templates
 from server.seed import (
@@ -56,22 +59,52 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Fail closed on partial SSO config before anything else.
+auth.check_config()
+
 app = FastAPI(title="It's Electric Automation", lifespan=lifespan)
 
-app.include_router(pipeline.router, prefix="/api/pipeline", tags=["pipeline"])
-app.include_router(contacts.router, prefix="/api/contacts", tags=["contacts"])
-app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
-app.include_router(chargers.router, prefix="/api/chargers", tags=["chargers"])
-app.include_router(config.router, prefix="/api", tags=["config"])
-app.include_router(export.router, prefix="/api", tags=["export"])
-app.include_router(logs.router, prefix="/api", tags=["logs"])
+# Signed-cookie sessions back the SSO login. When auth is on, cookies are
+# Secure; a per-process random default key keeps local dev working (sessions
+# just don't survive a restart).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", os.urandom(32).hex()),
+    same_site="lax",
+    https_only=auth.auth_enabled(),
+)
+
+if not auth.auth_enabled():
+    print(
+        "WARNING: Google SSO is DISABLED — the dashboard is open to anyone who "
+        "can reach it. Set GOOGLE_OAUTH_CLIENT_ID and ALLOWED_GOOGLE_EMAILS to "
+        "enable it."
+    )
+
+# Login/callback/logout/me — never behind the guard.
+app.include_router(auth.router)
+
+# Everything under /api is guarded. require_user is a no-op when auth is off.
+_guard = [Depends(require_user)]
+app.include_router(pipeline.router, prefix="/api/pipeline", tags=["pipeline"], dependencies=_guard)
+app.include_router(contacts.router, prefix="/api/contacts", tags=["contacts"], dependencies=_guard)
+app.include_router(
+    templates.router, prefix="/api/templates", tags=["templates"], dependencies=_guard
+)
+app.include_router(chargers.router, prefix="/api/chargers", tags=["chargers"], dependencies=_guard)
+app.include_router(config.router, prefix="/api", tags=["config"], dependencies=_guard)
+app.include_router(export.router, prefix="/api", tags=["export"], dependencies=_guard)
+app.include_router(logs.router, prefix="/api", tags=["logs"], dependencies=_guard)
 
 if os.path.exists("web/dist"):
     app.mount("/assets", StaticFiles(directory="web/dist/assets"), name="assets")
 
+    _DIST = Path("web/dist").resolve()
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(full_path: str):
-        candidate = Path("web/dist") / full_path
-        if candidate.is_file():
+        candidate = (_DIST / full_path).resolve()
+        # Confine to web/dist: reject `..` traversal before serving any file.
+        if candidate.is_file() and candidate.is_relative_to(_DIST):
             return FileResponse(candidate)
-        return FileResponse("web/dist/index.html")
+        return FileResponse(_DIST / "index.html")
