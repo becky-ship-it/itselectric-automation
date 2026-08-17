@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
-    healthCheckPath: /api/config
+    healthCheckPath: /api/me
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -19,6 +19,16 @@ services:
         sync: false
       - key: GOOGLE_REFRESH_TOKEN
         sync: false
+      # Web-UI Google SSO (separate OAuth client from the Gmail one above).
+      # Auth is enforced only when both the client id and the allowlist are set.
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: ALLOWED_GOOGLE_EMAILS
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
 
 databases:
   - name: itselectric-db
