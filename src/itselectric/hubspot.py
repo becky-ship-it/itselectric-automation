@@ -54,7 +54,7 @@ def upsert_contact(
                             "address": parts["street"],
                             "street_address_2": parts["unit"],
                             "city": parts["city"],
-                            "state": parts["state"],
+                            "us_state_or_canadian_province_2": parts["state"],
                             "zip": parts["zip"],
                             "form_selection": "EV Driver",
                         },

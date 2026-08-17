@@ -125,7 +125,7 @@ class TestUpsertContact:
 
         props = mock_post.call_args.kwargs["json"]["inputs"][0]["properties"]
         assert props["city"] == "Brooklyn"
-        assert props["state"] == "NY"
+        assert props["us_state_or_canadian_province_2"] == "NY"
         assert props["zip"] == "11201"
         # Line 1 is street only; apartment goes to street_address_2.
         assert props["address"] == "123 Main St"
