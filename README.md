@@ -51,6 +51,7 @@ Key settings:
 | `label` | Gmail label to read (e.g. `"Follow Up"`) |
 | `max_messages` | Maximum messages to process per pipeline run |
 | `hubspot_access_token` | HubSpot Private App token for CRM sync |
+| `geocodio_api_key` | [Geocodio](https://geocod.io/) API key. Set to prefer Geocodio over the Nominatim fallback |
 | `auto_send` | `true` to send emails automatically during pipeline runs |
 
 For initial seeding, `config.yaml` (gitignored) is checked on startup; existing database values are not overwritten. See `config.example.yaml` for supported keys.

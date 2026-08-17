@@ -20,6 +20,7 @@ cp config.example.yaml config.yaml
 | `label` | `INBOX` | Gmail label to fetch messages from |
 | `max_messages` | `100` | Max messages per pipeline run |
 | `hubspot_access_token` | `""` | HubSpot Private App token. Empty = skip HubSpot sync |
+| `geocodio_api_key` | `""` | [Geocodio](https://geocod.io/) API key. Set = use Geocodio; empty = Nominatim fallback |
 | `auto_send` | `false` | Send follow-up emails automatically during pipeline runs |
 | `spreadsheet_id` | `""` | Google Sheets ID for optional legacy export after a manual send |
 
@@ -50,7 +51,7 @@ See the [Email Template Guide](email-template-guide.md) for full authoring instr
 
 ## Geocoding cache
 
-Addresses are geocoded using [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap), rate-limited to 1 req/sec. Results are cached in the `GeoCache` DB table — each address is only looked up once across all pipeline runs.
+Addresses are geocoded using [Geocodio](https://geocod.io/) when `geocodio_api_key` is set, falling back to [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap, rate-limited to 1 req/sec) otherwise. Results are cached in the `GeoCache` DB table — each address is only looked up once across all pipeline runs.
 
 If `geocache.json` exists in the repo root on first startup, it is imported into the DB automatically. Format:
 
