@@ -1,0 +1,15 @@
+.git
+.venv
+__pycache__
+*.pyc
+web/node_modules
+web/dist
+data
+*.db
+token.json
+credentials.json
+.env
+tests
+docs
+.claude
+.worktrees
