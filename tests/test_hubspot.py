@@ -96,11 +96,21 @@ class TestUpsertContact:
         """With a Geocodio key, city comes from structured components, not the raw
         comma-split, so an apartment number never lands in the city field."""
         geo_loc = MagicMock()
-        geo_loc.raw = {"address_components": {"city": "Brooklyn", "state": "NY", "zip": "11201"}}
+        geo_loc.raw = {
+            "address_components": {
+                "number": "123",
+                "formatted_street": "Main St",
+                "secondaryunit": "Apt",
+                "secondarynumber": "4",
+                "city": "Brooklyn",
+                "state": "NY",
+                "zip": "11201",
+            }
+        }
 
         with (
             patch("itselectric.hubspot.requests.post") as mock_post,
-            patch("itselectric.geo._geocodio") as mock_geocodio,
+            patch("src.itselectric.geo._geocodio") as mock_geocodio,
         ):
             mock_post.return_value = self._mock_upsert_response("55")
             mock_geocodio.return_value.geocode.return_value = geo_loc
@@ -117,8 +127,9 @@ class TestUpsertContact:
         assert props["city"] == "Brooklyn"
         assert props["state"] == "NY"
         assert props["zip"] == "11201"
-        # Full mailing address preserved on the street line.
-        assert props["address"] == "123 Main St, Apt 4, Brooklyn, NY 11201"
+        # Line 1 is street only; apartment goes to street_address_2.
+        assert props["address"] == "123 Main St"
+        assert props["street_address_2"] == "Apt 4"
 
     def test_apartment_regex_fallback_without_key(self):
         """Without a key, regex fallback still keeps the apartment out of city."""
@@ -134,3 +145,4 @@ class TestUpsertContact:
 
         props = mock_post.call_args.kwargs["json"]["inputs"][0]["properties"]
         assert props["city"] == "Brooklyn"
+        assert props["street_address_2"] == ""
