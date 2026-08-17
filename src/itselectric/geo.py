@@ -134,8 +134,9 @@ def resolve_address_components(
     Geocodio errors or returns no components, this falls back to
     ``parse_address_components`` on the unit-stripped address.
 
-    The street line always comes from the original input (with the unit kept),
-    so the full mailing address is preserved for CRM records.
+    Address line 1 (house number + street) and the secondary unit (e.g. "Apt 4")
+    are returned separately as ``street`` and ``unit`` so they map to distinct
+    CRM properties. Neither ever contains the city, state, or zip.
 
     Args:
         address: Human-readable address string.
@@ -143,12 +144,12 @@ def resolve_address_components(
             first for city/state/zip.
 
     Returns:
-        Dict with keys ``street``, ``city``, ``state``, ``zip``. Missing parts
-        are empty strings.
+        Dict with keys ``street``, ``unit``, ``city``, ``state``, ``zip``.
+        Missing parts are empty strings.
     """
     address = (address or "").strip()
     fallback = parse_address_components(_strip_unit(address))
-    fallback["street"] = address or fallback["street"]
+    fallback["unit"] = ""
     if not geocodio_api_key or not address:
         return fallback
 
@@ -159,8 +160,16 @@ def resolve_address_components(
     comps = (loc.raw.get("address_components") if loc is not None else None) or {}
     if not comps.get("city"):
         return fallback
+
+    line1 = " ".join(
+        p for p in (comps.get("number", ""), comps.get("formatted_street", "")) if p
+    ).strip()
+    unit = " ".join(
+        p for p in (comps.get("secondaryunit", ""), comps.get("secondarynumber", "")) if p
+    ).strip()
     return {
-        "street": address,
+        "street": line1 or address,
+        "unit": unit,
         "city": comps.get("city", ""),
         "state": comps.get("state", ""),
         "zip": comps.get("zip", ""),
