@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import TreeNodeEditor from './TreeNodeEditor'
@@ -71,6 +71,55 @@ test('clicking remove converts condition to empty leaf', async () => {
   render(<TreeNodeEditor node={node} onChange={onChange} templates={TEMPLATES} />)
   await userEvent.click(screen.getByRole('button', { name: /remove condition/i }))
   expect(onChange).toHaveBeenCalledWith({ template: '' })
+})
+
+test('switching op to in converts existing string value to an array', async () => {
+  const node: TreeNode = {
+    condition: { field: 'driver_state', op: 'eq', value: 'CA' },
+    then: { template: 'close' },
+    else: { template: 'far' },
+  }
+  const onChange = vi.fn()
+  render(<TreeNodeEditor node={node} onChange={onChange} templates={TEMPLATES} />)
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: /condition operator/i }),
+    'in'
+  )
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+    condition: expect.objectContaining({ op: 'in', value: ['CA'] }),
+  }))
+})
+
+test('switching op away from in joins array value back to a string', async () => {
+  const node: TreeNode = {
+    condition: { field: 'driver_state', op: 'in', value: ['CA', 'MA', 'NY'] },
+    then: { template: 'close' },
+    else: { template: 'far' },
+  }
+  const onChange = vi.fn()
+  render(<TreeNodeEditor node={node} onChange={onChange} templates={TEMPLATES} />)
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: /condition operator/i }),
+    'eq'
+  )
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+    condition: expect.objectContaining({ op: 'eq', value: 'CA, MA, NY' }),
+  }))
+})
+
+test('editing value while op is in splits comma-separated input into an array', () => {
+  const node: TreeNode = {
+    condition: { field: 'driver_state', op: 'in', value: [] },
+    then: { template: 'close' },
+    else: { template: 'far' },
+  }
+  const onChange = vi.fn()
+  render(<TreeNodeEditor node={node} onChange={onChange} templates={TEMPLATES} />)
+  const input = screen.getByRole('textbox', { name: /condition value/i })
+  fireEvent.change(input, { target: { value: 'CA, MA' } })
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+    condition: expect.objectContaining({ value: ['CA', 'MA'] }),
+  }))
 })
 
 test('renders then and else branches for condition node', () => {

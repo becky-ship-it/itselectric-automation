@@ -1,7 +1,12 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import Config from './Config'
+
+function render(ui: React.ReactElement) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 vi.mock('../api/client', () => ({
   listTemplates: vi.fn().mockResolvedValue([
@@ -83,6 +88,26 @@ test('clicking Test calls testDecisionTree and shows results table', async () =>
   await userEvent.click(screen.getByRole('button', { name: /test/i }))
   expect(await screen.findByText('Alice Smith')).toBeInTheDocument()
   expect(screen.getAllByText('general_car_info').length).toBeGreaterThan(0)
+})
+
+test('LA driver within 0.5 miles of an LA charger routes to car_info_no_grace_period', async () => {
+  const { testDecisionTree } = await import('../api/client')
+  vi.mocked(testDecisionTree).mockResolvedValueOnce({
+    results: [
+      {
+        id: 'msg-la',
+        name: 'Sofia Torres',
+        address: '123 N Vermont Ave, Los Angeles, CA 90004',
+        parsed: true,
+        template: 'car_info_no_grace_period',
+      },
+    ],
+  })
+  render(<Config />)
+  await screen.findByRole('button', { name: 'general_car_info' })
+  await userEvent.click(screen.getByRole('button', { name: /test/i }))
+  expect(await screen.findByText('Sofia Torres')).toBeInTheDocument()
+  expect(screen.getByText('car_info_no_grace_period')).toBeInTheDocument()
 })
 
 test('invalid YAML shows parse error on decision tree save', async () => {

@@ -4,7 +4,7 @@ const MAX_DEPTH = 12
 
 export type LeafNode = { template: string }
 export type ConditionNode = {
-  condition: { field: string; op: string; value: string | number }
+  condition: { field: string; op: string; value: string | number | string[] }
   then: TreeNode
   else: TreeNode
 }
@@ -83,7 +83,14 @@ export default function TreeNodeEditor({ node, onChange, templates, depth = 0 }:
         <select
           aria-label="Condition operator"
           value={condition.op}
-          onChange={(e) => updateCondition({ op: e.target.value })}
+          onChange={(e) => {
+            const nextOp = e.target.value
+            const nextValue =
+              nextOp === 'in'
+                ? Array.isArray(condition.value) ? condition.value : String(condition.value).split(',').map((s) => s.trim()).filter(Boolean)
+                : Array.isArray(condition.value) ? condition.value.join(', ') : condition.value
+            updateCondition({ op: nextOp, value: nextValue })
+          }}
           className="text-sm border border-gray-300 rounded px-2 py-1
                      focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
@@ -92,11 +99,18 @@ export default function TreeNodeEditor({ node, onChange, templates, depth = 0 }:
         <input
           aria-label="Condition value"
           type="text"
-          value={String(condition.value)}
-          onChange={(e) => updateCondition({ value: e.target.value })}
+          value={Array.isArray(condition.value) ? condition.value.join(', ') : String(condition.value)}
+          onChange={(e) => {
+            const raw = e.target.value
+            updateCondition({
+              value: condition.op === 'in'
+                ? raw.split(',').map((s) => s.trim()).filter(Boolean)
+                : raw,
+            })
+          }}
           className="text-sm border border-gray-300 rounded px-2 py-1 w-24
                      focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="value"
+          placeholder={condition.op === 'in' ? 'CA, MA, NY' : 'value'}
         />
         <button
           aria-label="Remove condition"
