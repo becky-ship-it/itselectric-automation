@@ -13,6 +13,7 @@ Use these in a subject or body:
 | `{name}` | Contact's extracted name |
 | `{address}` | Contact's extracted address |
 | `{city}` | Nearest charger's city |
+| `{contact_city}` | Contact's own city (parsed from their submitted address) |
 | `{state}` | Contact's state |
 
 Unknown placeholders are left unchanged.

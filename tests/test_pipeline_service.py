@@ -93,6 +93,44 @@ def test_run_pipeline_skips_duplicate_message(db_session):
     assert db_session.query(Contact).filter_by(id="msg_001").count() == 1
 
 
+def test_run_pipeline_fills_contact_city_placeholder(db_session):
+    """{contact_city} resolves to the contact's own city, not the charger's."""
+    db_session.add(
+        Template(name="tell_me_more_contact_city", subject="Hi!", body_md="<p>Hi from {contact_city}</p>")
+    )
+    db_session.commit()
+    tree = {
+        "condition": {"field": "distance_miles", "op": "lte", "value": 999},
+        "then": {"template": "tell_me_more_contact_city"},
+        "else": {"template": None},
+    }
+    msg = {
+        "id": "msg_003",
+        "internalDate": "1704067200000",
+        "payload": {
+            "mimeType": "text/plain",
+            "body": {
+                "data": _b64(
+                    "[plain]: it's electric Jane Smith "
+                    "The user has an address of 1 Atlantic Ave, Queens, NY 11201 "
+                    "and has an email of jane@example.com\n"
+                    "Email address submitted in form\njane@example.com"
+                )
+            },
+        },
+    }
+    with (
+        patch("server.pipeline_service.fetch_messages", return_value=[msg]),
+        patch("server.pipeline_service.get_credentials", return_value=MagicMock()),
+        patch("server.pipeline_service.geocode_address", return_value=(40.6929, -73.9958)),
+    ):
+        run_pipeline(db_session, decision_tree=tree, auto_send=False, log=lambda m: None)
+
+    email = db_session.query(OutboundEmail).filter_by(contact_id="msg_003").first()
+    assert email is not None
+    assert "Queens" in email.body_html
+
+
 def test_run_pipeline_unparsed_email_creates_unparsed_row(db_session):
     unparsed_msg = {
         "id": "msg_002",

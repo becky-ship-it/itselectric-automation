@@ -62,6 +62,7 @@ export default function TemplateGuide() {
                 ['{name}', "Contact's full name"],
                 ['{address}', "Contact's street address"],
                 ['{city}', 'City of the nearest charger'],
+                ['{contact_city}', "Contact's own city (from their address)"],
                 ['{state}', "Contact's state (from their address)"],
               ].map(([v, d]) => (
                 <tr key={v}>
