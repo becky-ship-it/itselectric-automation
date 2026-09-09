@@ -171,7 +171,7 @@ def resolve_address_components(
         "street": line1 or address,
         "unit": unit,
         "city": comps.get("city", ""),
-        "state": comps.get("state", ""),
+        "state": comps.get("state_province", ""),
         "zip": comps.get("zip", ""),
     }
 
@@ -317,9 +317,9 @@ def geocode_address(
     # Strip apt/unit numbers — they confuse geocoders and are not needed for
     # locating the building. The normalized form is used as the cache key so
     # different unit numbers at the same address share one cache entry.
-    address = _strip_unit(address)
-    if not address:
-        return None
+    #address = _strip_unit(address)
+    #if not address:
+    #    return None
 
     # ── Read cache ────────────────────────────────────────────────────────────
     cache: dict = {}
