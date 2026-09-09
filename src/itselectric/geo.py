@@ -37,13 +37,17 @@ _UNIT_RE = re.compile(
 )
 
 # Matches a 2-letter US state abbreviation preceded by a comma, optionally
-# followed by a ZIP code, at the end of the address string.
-_STATE_ABBREV_RE = re.compile(r",\s*([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\s*$", re.IGNORECASE)
+# followed by a ZIP code (itself optionally comma-separated), at the end of
+# the address string.
+_STATE_ABBREV_RE = re.compile(
+    r",\s*([A-Z]{2})\s*,?\s*(?:\d{5}(?:-\d{4})?)?\s*$", re.IGNORECASE
+)
 
 # Matches a full state name (1-3 words) preceded by a comma, optionally
-# followed by a ZIP code, at the end of the address string.
+# followed by a ZIP code (itself optionally comma-separated), at the end of
+# the address string.
 _STATE_FULLNAME_RE = re.compile(
-    r",\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,2}?)\s*(?:\d{5}(?:-\d{4})?)?\s*$"
+    r",\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,2}?)\s*,?\s*(?:\d{5}(?:-\d{4})?)?\s*$"
 )
 
 # Maps lowercased full state names to 2-letter USPS abbreviations.
@@ -64,11 +68,16 @@ _STATE_NAME_TO_ABBREV: dict[str, str] = {
 }
 
 
-def extract_state_from_address(address: str | None) -> str | None:
+def extract_state_from_address(
+    address: str | None, geocodio_api_key: str | None = None
+) -> str | None:
     """
     Extract the US state abbreviation from a free-text address string.
 
-    Tries two strategies in order:
+    When ``geocodio_api_key`` is set, Geocodio's structured ``state`` component
+    is tried first (handles odd unit/comma formatting that trips up regex
+    splitting). Falls back to two regex strategies when no key is set, or
+    Geocodio errors or returns no state:
     1. Look for a 2-letter abbreviation (e.g. "TX", "CA") at the end of the string.
     2. Look for a full state name (e.g. "Texas", "North Carolina") and map it to
        its abbreviation via a lookup table.
@@ -79,6 +88,16 @@ def extract_state_from_address(address: str | None) -> str | None:
     if not address or not address.strip():
         return None
     address = address.strip()
+
+    if geocodio_api_key:
+        try:
+            loc = _geocodio(geocodio_api_key).geocode(address)
+        except GeocoderServiceError:
+            loc = None
+        if loc is not None:
+            state = (loc.raw.get("address_components") or {}).get("state")
+            if state:
+                return state.upper()
 
     # Strategy 1: 2-letter abbreviation
     m = _STATE_ABBREV_RE.search(address)

@@ -155,7 +155,9 @@ def run_pipeline(
                         nearest_charger_row.id if nearest_charger_row else None
                     )
                     contact.distance_miles = dist_float
-                    driver_state = extract_state_from_address(parsed["address"])
+                    driver_state = extract_state_from_address(
+                        parsed["address"], _get_config(session, "geocodio_api_key")
+                    )
                     charger_city = nearest_charger_dict["city"]
                     log(f"  Nearest charger: {nearest_charger_dict['name']} ({dist_float} mi)")
                 else:

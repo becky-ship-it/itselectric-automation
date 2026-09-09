@@ -101,7 +101,7 @@ def get_contact(contact_id: str, db: DbDep):
         contact_city=resolve_address_components(
             contact.address or "", _geocodio_key(db)
         )["city"],
-        state=extract_state_from_address(contact.address or "") or "",
+        state=extract_state_from_address(contact.address or "", _geocodio_key(db)) or "",
     )
 
     rendered = []
@@ -168,7 +168,7 @@ def send_contact_email(
         from src.itselectric.geo import extract_state_from_address, resolve_address_components
         driver_state = None
         if contact.address:
-            driver_state = extract_state_from_address(contact.address)
+            driver_state = extract_state_from_address(contact.address, _geocodio_key(db))
         charger_city = None
         if contact.nearest_charger_id:
             from server.models import Charger
@@ -279,7 +279,7 @@ def send_batch(db: DbDep):
                 contact_city=resolve_address_components(
                     contact.address or "", _geocodio_key(db)
                 )["city"],
-                state=extract_state_from_address(contact.address or "") or "",
+                state=extract_state_from_address(contact.address or "", _geocodio_key(db)) or "",
             )
 
             tmpl_body = outbound.body_html or ""
@@ -346,7 +346,7 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
     nearest_charger_row = None
     dist_float = None
     charger_city = None
-    driver_state = extract_state_from_address(body.address)
+    driver_state = extract_state_from_address(body.address, _geocodio_key(db))
 
     if coords:
         lat, lon = coords

@@ -123,16 +123,16 @@ def test_decision_tree(db: DbDep):
             results.append({"id": msg.get("id", ""), "parsed": False, "template": None})
             continue
 
+        geocodio_row = db.query(AppConfig).filter_by(key="geocodio_api_key").first()
+        geocodio_api_key = geocodio_row.value if geocodio_row else None
+
         cache = db.query(GeoCache).filter_by(address=parsed["address"]).first()
         if cache:
             coords: tuple[float, float] | None = (cache.lat, cache.lon)
         else:
             from src.itselectric.geo import geocode_address
 
-            geocodio_row = db.query(AppConfig).filter_by(key="geocodio_api_key").first()
-            coords = geocode_address(
-                parsed["address"], geocodio_api_key=geocodio_row.value if geocodio_row else None
-            )
+            coords = geocode_address(parsed["address"], geocodio_api_key=geocodio_api_key)
 
         if not coords:
             results.append({"id": msg.get("id", ""), "parsed": True, "template": "geocode_failed"})
@@ -145,7 +145,7 @@ def test_decision_tree(db: DbDep):
 
         charger, dist = result
         ctx = {
-            "driver_state": extract_state_from_address(parsed["address"]),
+            "driver_state": extract_state_from_address(parsed["address"], geocodio_api_key),
             "charger_state": charger["state"],
             "charger_city": charger["city"],
             "distance_miles": dist,

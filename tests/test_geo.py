@@ -281,6 +281,57 @@ class TestExtractStateFromAddress:
     def test_returns_none_for_none(self):
         assert extract_state_from_address(None) is None
 
+    # Geocodio-first path
+    def test_uses_geocodio_when_key_set(self):
+        loc = _geocodio_loc({"state": "CA"})
+        with patch("itselectric.geo._geocodio") as mock_geocodio:
+            mock_geocodio.return_value.geocode.return_value = loc
+            result = extract_state_from_address(
+                "456 Oak Ave, Los Angeles, California 90001", geocodio_api_key="key123"
+            )
+        mock_geocodio.assert_called_once_with("key123")
+        assert result == "CA"
+
+    def test_geocodio_resolves_apartment_address_regex_cannot_split(self):
+        """Regression: a malformed apt/comma-before-zip address that defeats the
+        regex fallback still resolves correctly when Geocodio is available."""
+        loc = _geocodio_loc({"state": "CA"})
+        with patch("itselectric.geo._geocodio") as mock_geocodio:
+            mock_geocodio.return_value.geocode.return_value = loc
+            result = extract_state_from_address(
+                "626 North Kingsley Drive, APT #Apartamento#8, Los Angeles, California, 90004",
+                geocodio_api_key="key123",
+            )
+        assert result == "CA"
+
+    def test_falls_back_to_regex_without_key(self):
+        with patch("itselectric.geo._geocodio") as mock_geocodio:
+            result = extract_state_from_address("123 Main St, Dallas, TX 75001")
+            mock_geocodio.assert_not_called()
+        assert result == "TX"
+
+    def test_falls_back_to_regex_when_geocodio_errors(self):
+        with patch("itselectric.geo._geocodio") as mock_geocodio:
+            mock_geocodio.return_value.geocode.side_effect = GeocoderServiceError("timeout")
+            result = extract_state_from_address(
+                "123 Main St, Dallas, TX 75001", geocodio_api_key="key123"
+            )
+        assert result == "TX"
+
+    def test_falls_back_to_regex_when_geocodio_has_no_state(self):
+        loc = _geocodio_loc({})
+        with patch("itselectric.geo._geocodio") as mock_geocodio:
+            mock_geocodio.return_value.geocode.return_value = loc
+            result = extract_state_from_address(
+                "123 Main St, Dallas, TX 75001", geocodio_api_key="key123"
+            )
+        assert result == "TX"
+
+    def test_regex_fallback_handles_comma_before_zip(self):
+        """'City, State, ZIP' (comma before zip) previously defeated both regexes."""
+        assert extract_state_from_address("123 Main St, Los Angeles, California, 90004") == "CA"
+        assert extract_state_from_address("123 Main St, Los Angeles, CA, 90004") == "CA"
+
 
 # ── load_chargers city/state fields ──────────────────────────────────────────
 
