@@ -54,6 +54,8 @@ GEOCACHE = {
     "100 N Michigan Ave, Chicago, IL 60601": [41.882, -87.624],
     # 10 — Hoboken NJ, ~3.5 mi from Brooklyn charger, NJ not in priority states → waitlist
     "100 Washington St, Hoboken, NJ 07030": [40.745, -74.028],
+    # 12 — Los Angeles CA, at the 615 S Virgil Ave charger, distance <= 0.5 → general_car_info
+    "614 S Virgil Ave, Los Angeles, CA 90005": [34.063086, -118.287344],
 }
 
 
@@ -74,7 +76,7 @@ def chargers():
 class TestFullPipeline:
     def test_loads_correct_number_of_messages(self):
         messages = load_fixture_messages(FIXTURES_DIR)
-        assert len(messages) == 11
+        assert len(messages) == 12
 
     def test_parsed_messages_extract_correctly(self, geocache_file, chargers):
         """Parsed fixture emails produce correct name/address/email fields."""
@@ -89,7 +91,7 @@ class TestFullPipeline:
             if parsed:
                 parsed_rows.append(parsed)
 
-        assert len(parsed_rows) == 9  # all fixtures except 03_unparsed and 11_bad_email
+        assert len(parsed_rows) == 10  # all fixtures except 03_unparsed and 11_bad_email
         names = {r["name"] for r in parsed_rows}
         assert "Jane Smith" in names
         assert "Bob Jones" in names
@@ -160,10 +162,10 @@ class TestFullPipeline:
             else:
                 rows.append((sent_date, "", "", "", "", plain, "", ""))
 
-        assert len(rows) == 11
+        assert len(rows) == 12
         # Parsed rows have real names
         parsed_rows = [r for r in rows if r[1]]
-        assert len(parsed_rows) == 9
+        assert len(parsed_rows) == 10
         # Geo columns are populated for parsed rows
         for row in parsed_rows:
             assert row[6] != "", f"Expected nearest_charger to be set, got: {row}"
@@ -202,6 +204,7 @@ class TestDecisionTreeRouting:
         "1 Woodward Ave, Detroit, MI 48226": "tell_me_more_general",
         "100 N Michigan Ave, Chicago, IL 60601": "waitlist",
         "100 Washington St, Hoboken, NJ 07030": "waitlist",
+        "614 S Virgil Ave, Los Angeles, CA 90005": "general_car_info",
     }
 
     @pytest.fixture(autouse=True)
