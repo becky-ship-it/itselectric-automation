@@ -13,7 +13,7 @@ from src.itselectric.geo import (
     extract_state_from_address,
     find_nearest_charger,
     geocode_address,
-    parse_address_components,
+    resolve_address_components,
 )
 from src.itselectric.gmail import body_to_plain, fetch_messages, get_body_from_payload, send_email
 from src.itselectric.hubspot import upsert_contact as hs_upsert
@@ -192,7 +192,9 @@ def run_pipeline(
                     name=parsed["name"],
                     address=parsed["address"],
                     city=charger_city or "",
-                    contact_city=parse_address_components(parsed["address"])["city"],
+                    contact_city=resolve_address_components(
+                        parsed["address"], _get_config(session, "geocodio_api_key")
+                    )["city"],
                     state=driver_state or "",
                 ))
                 from src.itselectric.email_layout import render_email

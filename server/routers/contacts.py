@@ -28,6 +28,11 @@ def get_db():
 DbDep = Annotated[Session, Depends(get_db)]
 
 
+def _geocodio_key(db: Session) -> str | None:
+    row = db.query(AppConfig).filter_by(key="geocodio_api_key").first()
+    return row.value if row else None
+
+
 @router.get("", response_model=list[ContactOut])
 def list_contacts(
     db: DbDep,
@@ -77,7 +82,7 @@ def get_contact(contact_id: str, db: DbDep):
         raise HTTPException(status_code=404, detail="Contact not found")
     outbound = db.query(OutboundEmail).filter_by(contact_id=contact_id).all()
 
-    from src.itselectric.geo import extract_state_from_address, parse_address_components
+    from src.itselectric.geo import extract_state_from_address, resolve_address_components
 
     class _SafeDict(dict):
         def __missing__(self, key: str) -> str:
@@ -93,7 +98,9 @@ def get_contact(contact_id: str, db: DbDep):
         name=contact.name or "",
         address=contact.address or "",
         city=charger_city or "",
-        contact_city=parse_address_components(contact.address or "")["city"],
+        contact_city=resolve_address_components(
+            contact.address or "", _geocodio_key(db)
+        )["city"],
         state=extract_state_from_address(contact.address or "") or "",
     )
 
@@ -158,7 +165,7 @@ def send_contact_email(
             return f'{{{key}}}'
 
     def _substitute(md: str) -> str:
-        from src.itselectric.geo import extract_state_from_address, parse_address_components
+        from src.itselectric.geo import extract_state_from_address, resolve_address_components
         driver_state = None
         if contact.address:
             driver_state = extract_state_from_address(contact.address)
@@ -171,7 +178,9 @@ def send_contact_email(
             name=contact.name or "",
             address=contact.address or "",
             city=charger_city or "",
-            contact_city=parse_address_components(contact.address or "")["city"],
+            contact_city=resolve_address_components(
+                contact.address or "", _geocodio_key(db)
+            )["city"],
             state=driver_state or "",
         ))
 
@@ -253,7 +262,7 @@ def send_batch(db: DbDep):
         try:
             creds = get_credentials()
             from src.itselectric.email_layout import render_email as _render
-            from src.itselectric.geo import extract_state_from_address, parse_address_components
+            from src.itselectric.geo import extract_state_from_address, resolve_address_components
 
             class _SD(dict):
                 def __missing__(self, key: str) -> str:
@@ -267,7 +276,9 @@ def send_batch(db: DbDep):
                 name=contact.name or "",
                 address=contact.address or "",
                 city=charger_city or "",
-                contact_city=parse_address_components(contact.address or "")["city"],
+                contact_city=resolve_address_components(
+                    contact.address or "", _geocodio_key(db)
+                )["city"],
                 state=extract_state_from_address(contact.address or "") or "",
             )
 
@@ -375,13 +386,13 @@ def fix_contact(contact_id: str, body: ContactFixIn, db: DbDep):
                 def __missing__(self, key: str) -> str:
                     return f'{{{key}}}'
 
-            from src.itselectric.geo import parse_address_components
+            from src.itselectric.geo import resolve_address_components
 
             md = md.format_map(_SD(
                 name=body.name,
                 address=body.address,
                 city=charger_city or "",
-                contact_city=parse_address_components(body.address)["city"],
+                contact_city=resolve_address_components(body.address, _geocodio_key(db))["city"],
                 state=driver_state or "",
             ))
             # Replace any existing pending outbound, or create new
