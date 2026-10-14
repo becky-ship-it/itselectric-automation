@@ -78,14 +78,18 @@ async def pipeline_run(db: DbDep, fixture: bool = Query(default=False)):
         loop.call_soon_threadsafe(queue.put_nowait, msg)
 
     def _run() -> None:
+        from server.db import get_engine, get_session
+        from server.main import DB_URL
+
         try:
-            run_pipeline(
-                db,
-                decision_tree=decision_tree,
-                auto_send=auto_send,
-                log=_log,
-                fixture_messages=fixture_messages,
-            )
+            with get_session(get_engine(DB_URL)) as thread_db:
+                run_pipeline(
+                    thread_db,
+                    decision_tree=decision_tree,
+                    auto_send=auto_send,
+                    log=_log,
+                    fixture_messages=fixture_messages,
+                )
         finally:
             loop.call_soon_threadsafe(queue.put_nowait, None)
             _status["status"] = "idle"

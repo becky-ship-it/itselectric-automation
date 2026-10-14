@@ -15,11 +15,21 @@ def _normalize(v):
     return v.lower() if isinstance(v, str) else v
 
 
+def _as_number(v):
+    """Coerce numeric strings (e.g. a value saved as "0.6" instead of 0.6) to float."""
+    if isinstance(v, str):
+        try:
+            return float(v)
+        except ValueError:
+            return v
+    return v
+
+
 _OPS = {
-    "lt":  lambda a, b: a < b,
-    "lte": lambda a, b: a <= b,
-    "gt":  lambda a, b: a > b,
-    "gte": lambda a, b: a >= b,
+    "lt":  lambda a, b: _as_number(a) < _as_number(b),
+    "lte": lambda a, b: _as_number(a) <= _as_number(b),
+    "gt":  lambda a, b: _as_number(a) > _as_number(b),
+    "gte": lambda a, b: _as_number(a) >= _as_number(b),
     "eq":  lambda a, b: _normalize(a) == _normalize(b),
     "ne":  lambda a, b: _normalize(a) != _normalize(b),
     "in":  lambda a, b: _normalize(a) in [_normalize(x) for x in b],
