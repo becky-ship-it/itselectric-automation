@@ -116,14 +116,15 @@ class TestFullPipeline:
         assert abs(lon - -73.975029) < 0.001
 
     def test_nearest_charger_found_for_brooklyn_address(self, geocache_file, chargers):
-        """A Brooklyn fixture address resolves to a real nearby charger."""
+        """A Brooklyn fixture address resolves to a real charger (nearest is Yonkers, NY
+        since the in-city Brooklyn charger was decommissioned; see chargers.csv)."""
         coords = geocode_address("19 Morris Ave, Brooklyn, NY 11205", cache_path=geocache_file)
         assert coords is not None
         charger_dict, dist = find_nearest_charger(*coords, chargers)
         assert charger_dict["name"] != ""
         assert charger_dict["city"] != ""
         assert charger_dict["state"] != ""
-        assert dist < 5.0  # well within 5 miles
+        assert dist < 20.0  # within range of the Yonkers charger
 
     def test_full_row_building(self, geocache_file, chargers):
         """End-to-end: fixture → extract → geo → 10-element row tuples."""
@@ -194,13 +195,18 @@ class TestDecisionTreeRouting:
     """Full pipeline: fixture email → extract → geo → decision tree → expected template."""
 
     # Maps fixture address → expected template name (None = unparsed, skip routing).
+    # The in-city Brooklyn charger (19 Morris Ave) was decommissioned from
+    # chargers.csv (see commit 40f75ac); the nearest charger to Brooklyn/NYC
+    # addresses is now Yonkers, NY, ~17 mi away. Yonkers isn't one of the
+    # NY-priority charger cities in the decision tree (only Brooklyn/Newburgh
+    # are), so these now correctly route to waitlist.
     _EXPECTED: dict[str, str | None] = {
-        "19 Morris Ave, Brooklyn, NY 11205": "general_car_info",
-        "15 Washington St., Brooklyn, NY 11205": "general_car_info",
+        "19 Morris Ave, Brooklyn, NY 11205": "waitlist",
+        "15 Washington St., Brooklyn, NY 11205": "waitlist",
         "1 Cambridge St, Boston, MA 02114": "tell_me_more_massachusetts",
         "1100 16th St NW, Washington, DC 20036": "tell_me_more_dc",
         "123 N Vermont Ave, Los Angeles, CA 90004": "tell_me_more_general",
-        "1 Atlantic Ave, Brooklyn, NY 11201": "tell_me_more_brooklyn",
+        "1 Atlantic Ave, Brooklyn, NY 11201": "waitlist",
         "1 Woodward Ave, Detroit, MI 48226": "tell_me_more_general",
         "100 N Michigan Ave, Chicago, IL 60601": "waitlist",
         "100 Washington St, Hoboken, NJ 07030": "waitlist",
